@@ -63,20 +63,22 @@ always @(posedge rst or posedge clk)
 
 // TODO : 시간 출력을 위한 카운터 추가
 always @(posedge rst or posedge clk)
-    if (rst) h_one = 0;
-    else if ((h_cnt == 999) && (s_one == 9) && (s_ten == 5) && (m_one == 9) && (m_ten == 5))
-        if (h_one >= 9) h_one = 0;
-        else h_one = h_one + 1;
-
-always @(posedge rst or posedge clk)
     if (rst) h_ten = 0;
-    else if ((h_cnt == 999) && (s_one == 9) && (s_ten == 5) && (m_one == 9) && (m_ten == 5) && (h_one == 9)) begin
-        if (h_ten >= 2 && h_one == 3) begin
+    else if ((h_cnt == 999) && (s_one == 9) && (s_ten == 5) && (m_one == 9) && (m_ten == 5)) begin
+        if (h_ten == 2 && h_one == 3) begin
+            // "23:59:59 → 00:00:00" 처리
             h_ten = 0;
             h_one = 0;
+        end else if (h_one == 9) begin
+            // h_one이 9일 때 h_ten 증가
+            h_one = 0;
+            h_ten = h_ten + 1;
+        end else begin
+            // 일반적인 h_one 증가
+            h_one = h_one + 1;
         end
-        else h_ten = h_ten + 1;
     end
+
         
 
 // data conversion
