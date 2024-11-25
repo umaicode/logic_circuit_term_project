@@ -29,6 +29,13 @@
 ### 추가 수정 사항
 keypad decoder 필요. 
 
+## watch_3.v
+### 주요 변경 사항
+1. 스톱워치 구현
+2. mode[00] = watch, mode[01] = stop_watch => 알람 구현 아직 안함. mode도 되는지 모름.
+3. mode 변경은 reset button처럼 버튼으로 구현하고자 함.
+4. LCD는 책을 먼저 보고 결정.
+
 
 ## seg_decode.v
 
