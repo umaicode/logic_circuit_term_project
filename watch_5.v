@@ -57,7 +57,7 @@ always @(posedge clk or posedge rst) begin
                 default: detected_key <= 4'd15; // 아무 입력도 없을 경우
             endcase
 
-            // 키 입력에 따라 시간 설정
+            // 키 입력에 따라 시간 설정 (set_mode 상태에서만)
             if (detected_key != 4'd15) begin
                 case (current_digit)
                     3'd0: h_ten <= (detected_key > 4'd2) ? 4'd0 : detected_key; // 최대값: 2
@@ -73,54 +73,55 @@ always @(posedge clk or posedge rst) begin
     end
 end
 
-// watch count
+// 시계 카운터 (run_mode 상태에서만 작동)
+always @(posedge clk or posedge rst) begin
+    if (rst) begin
+        h_cnt <= 0;
+    end else if (run_mode) begin
+        if (h_cnt >= 999) begin
+            h_cnt <= 0;
 
-always @(posedge rst or posedge clk)
-    if (rst) h_cnt = 0;
-    else if (h_cnt >=999) h_cnt = 0;
-    else h_cnt = h_cnt + 1;
+            // 초 증가
+            if (s_one >= 9) begin
+                s_one <= 0;
+                if (s_ten >= 5) begin
+                    s_ten <= 0;
 
-always @(posedge rst or posedge clk)
-    if (rst) s_one = 0;
-    else if (h_cnt == 999)
-        if (s_one >= 9) s_one = 0;
-        else s_one = s_one + 1;
+                    // 분 증가
+                    if (m_one >= 9) begin
+                        m_one <= 0;
+                        if (m_ten >= 5) begin
+                            m_ten <= 0;
 
-always @(posedge rst or posedge clk)
-    if (rst) s_ten = 0;
-    else if (h_cnt == 999 && s_one == 9)
-        if (s_ten >= 5) s_ten = 0;
-        else s_ten = s_ten + 1;
-
-always @(posedge rst or posedge clk)
-    if (rst) m_one = 0;
-    else if ((h_cnt == 999) && (s_one == 9) && (s_ten == 5))
-        if (m_one >= 9) m_one = 0;
-        else m_one = m_one + 1;
-
-always @(posedge rst or posedge clk)
-    if (rst) m_ten = 0;
-    else if ((h_cnt == 999) && (s_one == 9) && (s_ten == 5) && (m_one == 9))
-        if (m_ten >= 5) m_ten = 0;
-        else m_ten = m_ten + 1;
-
-// TODO : 시간 출력을 위한 카운터 추가
-always @(posedge rst or posedge clk)
-    if (rst) h_ten = 0;
-    else if ((h_cnt == 999) && (s_one == 9) && (s_ten == 5) && (m_one == 9) && (m_ten == 5)) begin
-        if (h_ten == 2 && h_one == 3) begin
-            // "23:59:59 → 00:00:00" 처리
-            h_ten = 0;
-            h_one = 0;
-        end else if (h_one == 9) begin
-            // h_one이 9일 때 h_ten 증가
-            h_one = 0;
-            h_ten = h_ten + 1;
+                            // 시간 증가
+                            if (h_one >= 9) begin
+                                h_one <= 0;
+                                if (h_ten >= 2 && h_one >= 3) begin
+                                    h_ten <= 0;
+                                    h_one <= 0;
+                                end else begin
+                                    h_ten <= h_ten + 1;
+                                end
+                            end else begin
+                                h_one <= h_one + 1;
+                            end
+                        end else begin
+                            m_ten <= m_ten + 1;
+                        end
+                    end else begin
+                        m_one <= m_one + 1;
+                    end
+                end else begin
+                    s_ten <= s_ten + 1;
+                end
+            end else begin
+                s_one <= s_one + 1;
+            end
         end else begin
-            // 일반적인 h_one 증가
-            h_one = h_one + 1;
+            h_cnt <= h_cnt + 1;
         end
     end
+end
 
 // 디코더 연결
 seg_decode u0 (h_ten, seg_h_ten);
