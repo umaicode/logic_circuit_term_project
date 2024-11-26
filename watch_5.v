@@ -1,41 +1,53 @@
-module watch(
-    input clk,         // 1kHz clock
-    input rst,         // Reset
-    input set_time,    // 설정 모드 버튼 (# 버튼)
-    input [9:0] num_input,  // 숫자 입력 (10개의 독립적인 핀: 0~9)
-    output reg [7:0] seg_data,
-    output reg [7:0] seg_com
-);
+module watch(clk, rst, seg_data, seg_com, btn_set, btn_inc, btn_done);
 
-// 카운터와 레지스터 선언
+input clk;  // 1kHz clock
+input rst;
+input btn_set;  // 시간 설정 모드 활성화 버튼
+input btn_inc;  // 설정 모드에서 숫자 증가 버튼
+input btn_done; // 설정 완료 버튼
+output reg [7:0] seg_data;
+output reg [7:0] seg_com;
+
+// 기존의 카운터 관련 reg와 wire
 reg [9:0] h_cnt;
 reg [3:0] h_ten, h_one, m_ten, m_one, s_ten, s_one;
+wire [7:0] seg_h_ten, seg_h_one, seg_m_ten, seg_m_one, seg_s_ten, seg_s_one;
+reg [2:0] s_cnt;
 
-// 시간 입력 관련 변수
-reg [2:0] input_cnt;  // 입력 단계 카운터 (0~5)
-reg input_mode;       // 입력 모드 활성화 플래그
-reg input_confirmed;  // 숫자 입력 확인 플래그
-reg [3:0] input_value; // 현재 눌린 숫자 (0~9)
+// 시간 설정 모드 플래그
+reg set_mode;
+reg [2:0] current_digit;  // 설정 중인 숫자의 자리 (0: h_ten, 1: h_one, ...)
 
-// 깜빡임 관련 변수
-reg [15:0] blink_timer;  // 타이머 카운터 (깜빡임 주기)
-reg blink_state;         // 깜빡임 상태 (ON/OFF)
+// 시계 카운터는 그대로 사용
+always @(posedge rst or posedge clk)
+    if (rst) h_cnt = 0;
+    else if (h_cnt >= 999) h_cnt = 0;
+    else h_cnt = h_cnt + 1;
 
-// 디바운싱 관련 변수
-reg [15:0] debounce_timer_0, debounce_timer_1, debounce_timer_2, debounce_timer_3;
-reg [15:0] debounce_timer_4, debounce_timer_5, debounce_timer_6, debounce_timer_7;
-reg [15:0] debounce_timer_8, debounce_timer_9;
+// 설정 모드 구현
+always @(posedge clk or posedge rst) begin
+    if (rst) begin
+        set_mode <= 1'b1;  // 초기화 시 설정 모드 활성화
+        current_digit <= 3'd0;  // 초기화 시 h_ten부터 시작
+    end else if (btn_done) begin
+        set_mode <= 1'b0;  // 설정 완료 시 모드 비활성화
+    end else if (btn_set) begin
+        // 설정할 자리를 순서대로 이동
+        current_digit <= (current_digit == 3'd5) ? 3'd0 : current_digit + 1;
+    end else if (btn_inc && set_mode) begin
+        // 현재 설정 중인 자리를 증가
+        case (current_digit)
+            3'd0: h_ten <= (h_ten == 2) ? 0 : h_ten + 1;  // 최대값: 2
+            3'd1: h_one <= (h_ten == 2 && h_one == 3) ? 0 : (h_one == 9 ? 0 : h_one + 1);  // 최대값: 3 (h_ten이 2일 때)
+            3'd2: m_ten <= (m_ten == 5) ? 0 : m_ten + 1;  // 최대값: 5
+            3'd3: m_one <= (m_one == 9) ? 0 : m_one + 1;  // 최대값: 9
+            3'd4: s_ten <= (s_ten == 5) ? 0 : s_ten + 1;  // 최대값: 5
+            3'd5: s_one <= (s_one == 9) ? 0 : s_one + 1;  // 최대값: 9
+        endcase
+    end
+end
 
-reg num_input_stable_0, num_input_stable_1, num_input_stable_2, num_input_stable_3;
-reg num_input_stable_4, num_input_stable_5, num_input_stable_6, num_input_stable_7;
-reg num_input_stable_8, num_input_stable_9;
-
-// 디코딩 출력
-wire [7:0] seg_h_ten, seg_h_one;
-wire [7:0] seg_m_ten, seg_m_one;
-wire [7:0] seg_s_ten, seg_s_one;
-
-// 디코딩 모듈 연결
+// 디코딩
 seg_decode u0 (h_ten, seg_h_ten);
 seg_decode u1 (h_one, seg_h_one);
 seg_decode u2 (m_ten, seg_m_ten);
@@ -43,188 +55,38 @@ seg_decode u3 (m_one, seg_m_one);
 seg_decode u4 (s_ten, seg_s_ten);
 seg_decode u5 (s_one, seg_s_one);
 
-// 디바운싱 처리
-always @(posedge clk or posedge rst) begin
-    if (rst) begin
-        debounce_timer_0 <= 0; debounce_timer_1 <= 0;
-        debounce_timer_2 <= 0; debounce_timer_3 <= 0;
-        debounce_timer_4 <= 0; debounce_timer_5 <= 0;
-        debounce_timer_6 <= 0; debounce_timer_7 <= 0;
-        debounce_timer_8 <= 0; debounce_timer_9 <= 0;
-
-        num_input_stable_0 <= 0; num_input_stable_1 <= 0;
-        num_input_stable_2 <= 0; num_input_stable_3 <= 0;
-        num_input_stable_4 <= 0; num_input_stable_5 <= 0;
-        num_input_stable_6 <= 0; num_input_stable_7 <= 0;
-        num_input_stable_8 <= 0; num_input_stable_9 <= 0;
-    end else begin
-        // 각 버튼의 디바운싱 처리
-        if (num_input[0]) begin
-            if (debounce_timer_0 < 50000) debounce_timer_0 <= debounce_timer_0 + 1;
-            else num_input_stable_0 <= 1;
-        end else begin
-            debounce_timer_0 <= 0;
-            num_input_stable_0 <= 0;
-        end
-
-        if (num_input[1]) begin
-            if (debounce_timer_1 < 50000) debounce_timer_1 <= debounce_timer_1 + 1;
-            else num_input_stable_1 <= 1;
-        end else begin
-            debounce_timer_1 <= 0;
-            num_input_stable_1 <= 0;
-        end
-
-        if (num_input[2]) begin
-            if (debounce_timer_2 < 50000) debounce_timer_2 <= debounce_timer_2 + 1;
-            else num_input_stable_2 <= 1;
-        end else begin
-            debounce_timer_2 <= 0;
-            num_input_stable_2 <= 0;
-        end
-
-        if (num_input[3]) begin
-            if (debounce_timer_3 < 50000) debounce_timer_3 <= debounce_timer_3 + 1;
-            else num_input_stable_3 <= 1;
-        end else begin
-            debounce_timer_3 <= 0;
-            num_input_stable_3 <= 0;
-        end
-
-        if (num_input[4]) begin
-            if (debounce_timer_4 < 50000) debounce_timer_4 <= debounce_timer_4 + 1;
-            else num_input_stable_4 <= 1;
-        end else begin
-            debounce_timer_4 <= 0;
-            num_input_stable_4 <= 0;
-        end
-
-        if (num_input[5]) begin
-            if (debounce_timer_5 < 50000) debounce_timer_5 <= debounce_timer_5 + 1;
-            else num_input_stable_5 <= 1;
-        end else begin
-            debounce_timer_5 <= 0;
-            num_input_stable_5 <= 0;
-        end
-
-        if (num_input[6]) begin
-            if (debounce_timer_6 < 50000) debounce_timer_6 <= debounce_timer_6 + 1;
-            else num_input_stable_6 <= 1;
-        end else begin
-            debounce_timer_6 <= 0;
-            num_input_stable_6 <= 0;
-        end
-
-        if (num_input[7]) begin
-            if (debounce_timer_7 < 50000) debounce_timer_7 <= debounce_timer_7 + 1;
-            else num_input_stable_7 <= 1;
-        end else begin
-            debounce_timer_7 <= 0;
-            num_input_stable_7 <= 0;
-        end
-
-        if (num_input[8]) begin
-            if (debounce_timer_8 < 50000) debounce_timer_8 <= debounce_timer_8 + 1;
-            else num_input_stable_8 <= 1;
-        end else begin
-            debounce_timer_8 <= 0;
-            num_input_stable_8 <= 0;
-        end
-
-        if (num_input[9]) begin
-            if (debounce_timer_9 < 50000) debounce_timer_9 <= debounce_timer_9 + 1;
-            else num_input_stable_9 <= 1;
-        end else begin
-            debounce_timer_9 <= 0;
-            num_input_stable_9 <= 0;
-        end
-    end
-end
-
-// 시계 동작 로직
-always @(posedge clk or posedge rst) begin
-    if (rst) h_cnt <= 0;
-    else if (h_cnt >= 999) h_cnt <= 0;
-    else h_cnt <= h_cnt + 1;
-end
-
-always @(posedge clk or posedge rst) begin
-    if (rst) s_one <= 0;
-    else if (h_cnt == 999) begin
-        if (s_one >= 9) s_one <= 0;
-        else s_one <= s_one + 1;
-    end
-end
-
-always @(posedge clk or posedge rst) begin
-    if (rst) s_ten <= 0;
-    else if (h_cnt == 999 && s_one == 9) begin
-        if (s_ten >= 5) s_ten <= 0;
-        else s_ten <= s_ten + 1;
-    end
-end
-
-always @(posedge clk or posedge rst) begin
-    if (rst) m_one <= 0;
-    else if (h_cnt == 999 && s_one == 9 && s_ten == 5) begin
-        if (m_one >= 9) m_one <= 0;
-        else m_one <= m_one + 1;
-    end
-end
-
-always @(posedge clk or posedge rst) begin
-    if (rst) m_ten <= 0;
-    else if (h_cnt == 999 && s_one == 9 && s_ten == 5 && m_one == 9) begin
-        if (m_ten >= 5) m_ten <= 0;
-        else m_ten <= m_ten + 1;
-    end
-end
-
-always @(posedge clk or posedge rst) begin
-    if (rst) begin
-        h_ten <= 0;
-        h_one <= 0;
-    end else if (h_cnt == 999 && s_one == 9 && s_ten == 5 && m_one == 9 && m_ten == 5) begin
-        if (h_ten == 2 && h_one == 3) begin
-            h_ten <= 0;
-            h_one <= 0;
-        end else if (h_one == 9) begin
-            h_one <= 0;
-            h_ten <= h_ten + 1;
-        end else begin
-            h_one <= h_one + 1;
-        end
-    end
-end
-
-// 나머지 세그먼트 제어 및 설정 모드 로직 유지
-// 세그먼트 출력 제어
-reg [2:0] s_cnt;
-
+// 세그먼트 표시 제어
 always @(posedge clk) begin
     if (rst) s_cnt <= 0;
     else s_cnt <= s_cnt + 1;
 end
 
 always @(posedge clk) begin
-    if (input_mode && blink_state) begin
-        case (input_cnt)
-            3'd0: begin seg_com <= 8'b0111_1111; seg_data <= 8'b0000_0000; end
-            3'd1: begin seg_com <= 8'b1011_1111; seg_data <= 8'b0000_0000; end
-            3'd2: begin seg_com <= 8'b1101_1111; seg_data <= 8'b0000_0000; end
-            3'd3: begin seg_com <= 8'b1110_1111; seg_data <= 8'b0000_0000; end
-            3'd4: begin seg_com <= 8'b1111_0111; seg_data <= 8'b0000_0000; end
-            3'd5: begin seg_com <= 8'b1111_1011; seg_data <= 8'b0000_0000; end
-        endcase
-    end else begin
+    if (rst) seg_com <= 8'b1111_1111;
+    else begin
         case (s_cnt)
-            3'd0: begin seg_com <= 8'b0111_1111; seg_data <= seg_h_ten; end
-            3'd1: begin seg_com <= 8'b1011_1111; seg_data <= seg_h_one; end
-            3'd2: begin seg_com <= 8'b1101_1111; seg_data <= seg_m_ten; end
-            3'd3: begin seg_com <= 8'b1110_1111; seg_data <= seg_m_one; end
-            3'd4: begin seg_com <= 8'b1111_0111; seg_data <= seg_s_ten; end
-            3'd5: begin seg_com <= 8'b1111_1011; seg_data <= seg_s_one; end
-            default: begin seg_com <= 8'b1111_1111; seg_data <= 8'b0000_0000; end
+            3'd0: seg_com <= 8'b0111_1111; // h_ten
+            3'd1: seg_com <= 8'b1011_1111; // h_one
+            3'd2: seg_com <= 8'b1101_1111; // m_ten
+            3'd3: seg_com <= 8'b1110_1111; // m_one
+            3'd4: seg_com <= 8'b1111_0111; // s_ten
+            3'd5: seg_com <= 8'b1111_1011; // s_one
+            default: seg_com <= 8'b1111_1111;
+        endcase
+    end
+end
+
+always @(posedge clk) begin
+    if (rst) seg_data <= 8'b0000_0000;
+    else begin
+        case (s_cnt)
+            3'd0: seg_data <= seg_h_ten;
+            3'd1: seg_data <= seg_h_one;
+            3'd2: seg_data <= seg_m_ten;
+            3'd3: seg_data <= seg_m_one;
+            3'd4: seg_data <= seg_s_ten;
+            3'd5: seg_data <= seg_s_one;
+            default: seg_data <= 8'b0000_0000;
         endcase
     end
 end
