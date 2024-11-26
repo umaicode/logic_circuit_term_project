@@ -1,26 +1,78 @@
-module watch(clk, rst, seg_data, seg_com, key_input, btn_done);
+module watch(clk, rst, seg_data, seg_com, key_input, btn_set);
 
 input clk;             // 1kHz clock
 input rst;
-input [9:0] key_input; // 넘버패드 입력 (10개 핀: key_input[0] ~ key_input[9])
-input btn_done;        // 설정 완료 버튼
+input [9:0] key_input; // 키패드 입력 (12개 핀: key_input[0]~key_input[11], '#'은 key_input[10])
+input btn_set;         // 별도의 초기화 버튼 (옵션)
 output reg [7:0] seg_data;
 output reg [7:0] seg_com;
 
-// 기존의 카운터 관련 reg와 wire
+// 시계 관련 레지스터
 reg [9:0] h_cnt;
 reg [3:0] h_ten, h_one, m_ten, m_one, s_ten, s_one;
 wire [7:0] seg_h_ten, seg_h_one, seg_m_ten, seg_m_one, seg_s_ten, seg_s_one;
 reg [2:0] s_cnt;
 
-// 시간 설정 모드 플래그
-reg set_mode;
-reg [2:0] current_digit; // 현재 입력 중인 자리 (0: h_ten, 1: h_one, ...)
+// 설정 모드 및 작동 플래그
+reg set_mode;          // 설정 모드 플래그
+reg run_mode;          // 시계 작동 플래그
+reg [2:0] current_digit; // 현재 설정 중인 자리 (0: h_ten, 1: h_one, ...)
 
-// key_input 처리용 신호
-reg [3:0] detected_key; // 감지된 숫자 값
+// 입력된 키값 감지
+reg [3:0] detected_key;
 
-// 시계 카운터는 그대로 사용
+// 초기화
+always @(posedge clk or posedge rst) begin
+    if (rst) begin
+        set_mode <= 1'b1;      // 초기화 시 설정 모드 활성화
+        run_mode <= 1'b0;      // 시계 정지 상태
+        current_digit <= 3'd0;
+        h_ten <= 4'd0; h_one <= 4'd0;
+        m_ten <= 4'd0; m_one <= 4'd0;
+        s_ten <= 4'd0; s_one <= 4'd0;
+        detected_key <= 4'd15; // 감지된 키 초기화
+    end else if (btn_set) begin
+        set_mode <= 1'b1;      // 버튼 입력 시 설정 모드 활성화
+        run_mode <= 1'b0;      // 시계 정지 상태로 전환
+        current_digit <= 3'd0;
+    end else if (set_mode) begin
+        if (|key_input) begin
+            // 키패드 입력 처리
+            case (key_input)
+                12'b000000000001: detected_key <= 4'd0;
+                12'b000000000010: detected_key <= 4'd1;
+                12'b000000000100: detected_key <= 4'd2;
+                12'b000000001000: detected_key <= 4'd3;
+                12'b000000010000: detected_key <= 4'd4;
+                12'b000000100000: detected_key <= 4'd5;
+                12'b000001000000: detected_key <= 4'd6;
+                12'b000010000000: detected_key <= 4'd7;
+                12'b000100000000: detected_key <= 4'd8;
+                12'b001000000000: detected_key <= 4'd9;
+                12'b010000000000: begin
+                    // '#' 입력 시 설정 완료
+                    set_mode <= 1'b0; // 설정 모드 비활성화
+                    run_mode <= 1'b1; // 시계 작동 시작
+                end
+                default: detected_key <= 4'd15; // 아무 입력도 없을 경우
+            endcase
+
+            // 키 입력에 따라 시간 설정
+            if (detected_key != 4'd15) begin
+                case (current_digit)
+                    3'd0: h_ten <= (detected_key > 4'd2) ? 4'd0 : detected_key; // 최대값: 2
+                    3'd1: h_one <= (h_ten == 4'd2 && detected_key > 4'd3) ? 4'd0 : detected_key; // 최대값: 3
+                    3'd2: m_ten <= (detected_key > 4'd5) ? 4'd0 : detected_key; // 최대값: 5
+                    3'd3: m_one <= detected_key; // 최대값: 9
+                    3'd4: s_ten <= (detected_key > 4'd5) ? 4'd0 : detected_key; // 최대값: 5
+                    3'd5: s_one <= detected_key; // 최대값: 9
+                endcase
+                current_digit <= (current_digit == 3'd5) ? 3'd0 : current_digit + 1; // 자리 이동
+            end
+        end
+    end
+end
+
 // watch count
 
 always @(posedge rst or posedge clk)
@@ -70,54 +122,7 @@ always @(posedge rst or posedge clk)
         end
     end
 
-// key_input 감지 로직
-always @(posedge clk or posedge rst) begin
-    if (rst) begin
-        detected_key <= 4'd15; // 초기화
-    end else begin
-        // key_input 중 하나가 활성화된 경우
-        case (key_input)
-            10'b0000000001: detected_key <= 4'd0;
-            10'b0000000010: detected_key <= 4'd1;
-            10'b0000000100: detected_key <= 4'd2;
-            10'b0000001000: detected_key <= 4'd3;
-            10'b0000010000: detected_key <= 4'd4;
-            10'b0000100000: detected_key <= 4'd5;
-            10'b0001000000: detected_key <= 4'd6;
-            10'b0010000000: detected_key <= 4'd7;
-            10'b0100000000: detected_key <= 4'd8;
-            10'b1000000000: detected_key <= 4'd9;
-            default: detected_key <= 4'd15; // 아무 키도 입력되지 않음
-        endcase
-    end
-end
-
-// 설정 모드 구현
-always @(posedge clk or posedge rst) begin
-    if (rst) begin
-        set_mode <= 1'b1; // 초기화 시 설정 모드 활성화
-        current_digit <= 3'd0; // 초기화 시 h_ten부터 시작
-        h_ten <= 4'd0; h_one <= 4'd0; m_ten <= 4'd0; m_one <= 4'd0; s_ten <= 4'd0; s_one <= 4'd0;
-    end else if (btn_done) begin
-        set_mode <= 1'b0; // 설정 완료 시 모드 비활성화
-    end else if (set_mode) begin
-        // 숫자 감지 및 처리
-        if (detected_key != 4'd15) begin
-            case (current_digit)
-                3'd0: h_ten <= (detected_key > 4'd2) ? 4'd0 : detected_key; // h_ten 최대값: 2
-                3'd1: h_one <= (h_ten == 4'd2 && detected_key > 4'd3) ? 4'd0 : detected_key; // h_one 최대값: 3 (h_ten이 2일 때)
-                3'd2: m_ten <= (detected_key > 4'd5) ? 4'd0 : detected_key; // m_ten 최대값: 5
-                3'd3: m_one <= detected_key; // m_one 최대값: 9
-                3'd4: s_ten <= (detected_key > 4'd5) ? 4'd0 : detected_key; // s_ten 최대값: 5
-                3'd5: s_one <= detected_key; // s_one 최대값: 9
-            endcase
-            // 다음 자리로 이동
-            current_digit <= (current_digit == 3'd5) ? 3'd0 : current_digit + 1;
-        end
-    end
-end
-
-// 디코딩
+// 디코더 연결
 seg_decode u0 (h_ten, seg_h_ten);
 seg_decode u1 (h_one, seg_h_one);
 seg_decode u2 (m_ten, seg_m_ten);
@@ -125,7 +130,7 @@ seg_decode u3 (m_one, seg_m_one);
 seg_decode u4 (s_ten, seg_s_ten);
 seg_decode u5 (s_one, seg_s_one);
 
-// 세그먼트 표시 제어
+// 세그먼트 디스플레이
 always @(posedge clk) begin
     if (rst) s_cnt <= 0;
     else s_cnt <= s_cnt + 1;
