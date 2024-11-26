@@ -1,10 +1,9 @@
-module watch(clk, rst, seg_data, seg_com, btn_set, btn_inc, btn_done);
+module watch(clk, rst, seg_data, seg_com, key_input, btn_done);
 
-input clk;  // 1kHz clock
+input clk;           // 1kHz clock
 input rst;
-input btn_set;  // 시간 설정 모드 활성화 버튼
-input btn_inc;  // 설정 모드에서 숫자 증가 버튼
-input btn_done; // 설정 완료 버튼
+input [9:0] key_input;  // 넘버패드 입력 (10개 핀: key_input[0] ~ key_input[9])
+input btn_done;      // 설정 완료 버튼
 output reg [7:0] seg_data;
 output reg [7:0] seg_com;
 
@@ -16,36 +15,100 @@ reg [2:0] s_cnt;
 
 // 시간 설정 모드 플래그
 reg set_mode;
-reg [2:0] current_digit;  // 설정 중인 숫자의 자리 (0: h_ten, 1: h_one, ...)
+reg [2:0] current_digit;  // 현재 입력 중인 자리 (0: h_ten, 1: h_one, ...)
 
 // 시계 카운터는 그대로 사용
+// watch count
+
 always @(posedge rst or posedge clk)
     if (rst) h_cnt = 0;
-    else if (h_cnt >= 999) h_cnt = 0;
+    else if (h_cnt >=999) h_cnt = 0;
     else h_cnt = h_cnt + 1;
+
+always @(posedge rst or posedge clk)
+    if (rst) s_one = 0;
+    else if (h_cnt == 999)
+        if (s_one >= 9) s_one = 0;
+        else s_one = s_one + 1;
+
+always @(posedge rst or posedge clk)
+    if (rst) s_ten = 0;
+    else if (h_cnt == 999 && s_one == 9)
+        if (s_ten >= 5) s_ten = 0;
+        else s_ten = s_ten + 1;
+
+always @(posedge rst or posedge clk)
+    if (rst) m_one = 0;
+    else if ((h_cnt == 999) && (s_one == 9) && (s_ten == 5))
+        if (m_one >= 9) m_one = 0;
+        else m_one = m_one + 1;
+
+always @(posedge rst or posedge clk)
+    if (rst) m_ten = 0;
+    else if ((h_cnt == 999) && (s_one == 9) && (s_ten == 5) && (m_one == 9))
+        if (m_ten >= 5) m_ten = 0;
+        else m_ten = m_ten + 1;
+
+// TODO : 시간 출력을 위한 카운터 추가
+always @(posedge rst or posedge clk)
+    if (rst) h_ten = 0;
+    else if ((h_cnt == 999) && (s_one == 9) && (s_ten == 5) && (m_one == 9) && (m_ten == 5)) begin
+        if (h_ten == 2 && h_one == 3) begin
+            // "23:59:59 → 00:00:00" 처리
+            h_ten = 0;
+            h_one = 0;
+        end else if (h_one == 9) begin
+            // h_one이 9일 때 h_ten 증가
+            h_one = 0;
+            h_ten = h_ten + 1;
+        end else begin
+            // 일반적인 h_one 증가
+            h_one = h_one + 1;
+        end
+    end
 
 // 설정 모드 구현
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         set_mode <= 1'b1;  // 초기화 시 설정 모드 활성화
         current_digit <= 3'd0;  // 초기화 시 h_ten부터 시작
+        h_ten <= 4'd0; h_one <= 4'd0; m_ten <= 4'd0; m_one <= 4'd0; s_ten <= 4'd0; s_one <= 4'd0;
     end else if (btn_done) begin
         set_mode <= 1'b0;  // 설정 완료 시 모드 비활성화
-    end else if (btn_set) begin
-        // 설정할 자리를 순서대로 이동
-        current_digit <= (current_digit == 3'd5) ? 3'd0 : current_digit + 1;
-    end else if (btn_inc && set_mode) begin
-        // 현재 설정 중인 자리를 증가
-        case (current_digit)
-            3'd0: h_ten <= (h_ten == 2) ? 0 : h_ten + 1;  // 최대값: 2
-            3'd1: h_one <= (h_ten == 2 && h_one == 3) ? 0 : (h_one == 9 ? 0 : h_one + 1);  // 최대값: 3 (h_ten이 2일 때)
-            3'd2: m_ten <= (m_ten == 5) ? 0 : m_ten + 1;  // 최대값: 5
-            3'd3: m_one <= (m_one == 9) ? 0 : m_one + 1;  // 최대값: 9
-            3'd4: s_ten <= (s_ten == 5) ? 0 : s_ten + 1;  // 최대값: 5
-            3'd5: s_one <= (s_one == 9) ? 0 : s_one + 1;  // 최대값: 9
-        endcase
+    end else if (set_mode) begin
+        // 넘버패드 입력 처리
+        if (|key_input) begin  // 키 입력이 감지되었을 때
+            case (key_input)
+                10'b0000000001: process_input(4'd0);  // 키 0
+                10'b0000000010: process_input(4'd1);  // 키 1
+                10'b0000000100: process_input(4'd2);  // 키 2
+                10'b0000001000: process_input(4'd3);  // 키 3
+                10'b0000010000: process_input(4'd4);  // 키 4
+                10'b0000100000: process_input(4'd5);  // 키 5
+                10'b0001000000: process_input(4'd6);  // 키 6
+                10'b0010000000: process_input(4'd7);  // 키 7
+                10'b0100000000: process_input(4'd8);  // 키 8
+                10'b1000000000: process_input(4'd9);  // 키 9
+            endcase
+        end
     end
 end
+
+// 입력 처리 함수
+task process_input(input [3:0] value);
+begin
+    case (current_digit)
+        3'd0: h_ten <= (value > 4'd2) ? 4'd0 : value;  // h_ten 최대값: 2
+        3'd1: h_one <= (h_ten == 4'd2 && value > 4'd3) ? 4'd0 : value;  // h_one 최대값: 3 (h_ten이 2일 때)
+        3'd2: m_ten <= (value > 4'd5) ? 4'd0 : value;  // m_ten 최대값: 5
+        3'd3: m_one <= value;  // m_one 최대값: 9
+        3'd4: s_ten <= (value > 4'd5) ? 4'd0 : value;  // s_ten 최대값: 5
+        3'd5: s_one <= value;  // s_one 최대값: 9
+    endcase
+    // 다음 자리로 이동
+    current_digit <= (current_digit == 3'd5) ? 3'd0 : current_digit + 1;
+end
+endtask
 
 // 디코딩
 seg_decode u0 (h_ten, seg_h_ten);
