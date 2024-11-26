@@ -8,6 +8,7 @@ module lcd_control(
 parameter WATCH = 2'b00;
 parameter ALARM = 2'b01;
 parameter STOPWATCH = 2'b10;
+parameter SETTING = 2'b11;
 
 always @(*) begin
     case (mode)
@@ -64,6 +65,21 @@ always @(*) begin
                 default: lcd_data = 8'b00100000; // 공백
             endcase
         end
+        SETTING: begin
+            // SETTING 모드: "MODE4 : SET"
+            case (cnt)
+                4'd0 : lcd_data = 8'b01001101; // 'M'
+                4'd1 : lcd_data = 8'b01001111; // 'O'
+                4'd2 : lcd_data = 8'b01000100; // 'D'
+                4'd3 : lcd_data = 8'b01000101; // 'E'
+                4'd4 : lcd_data = 8'b00110100; // '4'
+                4'd5 : lcd_data = 8'b00111010; // ':'
+                4'd6 : lcd_data = 8'b00100000; // ' '
+                4'd7 : lcd_data = 8'b01010011; // 'S'
+                4'd8 : lcd_data = 8'b01000101; // 'E'
+                4'd9 : lcd_data = 8'b01010100; // 'T'
+                default: lcd_data = 8'b00100000; // 공백
+            endcase
         default: lcd_data = 8'b00100000; // 공백
     endcase
 end
