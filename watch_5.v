@@ -28,7 +28,7 @@ seg_decode u3 (m_one, seg_m_one);
 seg_decode u4 (s_ten, seg_s_ten);
 seg_decode u5 (s_one, seg_s_one);
 
-// 초기화 및 입력 모드 관리
+// 초기화 및 제어 통합
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         input_cnt <= 0;
@@ -36,64 +36,64 @@ always @(posedge clk or posedge rst) begin
         h_ten <= 0; h_one <= 0;
         m_ten <= 0; m_one <= 0;
         s_ten <= 0; s_one <= 0;
+        h_cnt <= 0;
     end else if (set_time) begin
         input_mode <= 1;  // 입력 모드 활성화
-    end else if (input_mode) begin
-        case (input_cnt)
-            3'd0: h_ten <= num_input;  // 시의 10의 자리 입력
-            3'd1: h_one <= num_input;  // 시의 1의 자리 입력
-            3'd2: m_ten <= num_input;  // 분의 10의 자리 입력
-            3'd3: m_one <= num_input;  // 분의 1의 자리 입력
-            3'd4: s_ten <= num_input;  // 초의 10의 자리 입력
-            3'd5: begin
-                s_one <= num_input;    // 초의 1의 자리 입력
-                input_mode <= 0;       // 입력 완료 -> 입력 모드 비활성화
-            end
-        endcase
+    end else begin
+        if (input_mode) begin
+            // 입력 모드
+            case (input_cnt)
+                3'd0: h_ten <= num_input;  // 시의 10의 자리 입력
+                3'd1: h_one <= num_input;  // 시의 1의 자리 입력
+                3'd2: m_ten <= num_input;  // 분의 10의 자리 입력
+                3'd3: m_one <= num_input;  // 분의 1의 자리 입력
+                3'd4: s_ten <= num_input;  // 초의 10의 자리 입력
+                3'd5: begin
+                    s_one <= num_input;    // 초의 1의 자리 입력
+                    input_mode <= 0;       // 입력 완료 -> 입력 모드 비활성화
+                end
+            endcase
 
-        if (input_cnt < 5)
-            input_cnt <= input_cnt + 1;
-    end
-end
-
-// 시계 카운트
-always @(posedge clk or posedge rst) begin
-    if (rst || input_mode) begin
-        h_cnt <= 0;
-    end else if (h_cnt >= 999) begin
-        h_cnt <= 0;
-        if (s_one == 9) begin
-            s_one <= 0;
-            if (s_ten == 5) begin
-                s_ten <= 0;
-                if (m_one == 9) begin
-                    m_one <= 0;
-                    if (m_ten == 5) begin
-                        m_ten <= 0;
-                        if (h_one == 9) begin
-                            h_one <= 0;
-                            if (h_ten == 2 && h_one == 3) begin
-                                h_ten <= 0;
+            if (input_cnt < 5)
+                input_cnt <= input_cnt + 1;
+        end else begin
+            // 시계 동작
+            if (h_cnt >= 999) begin
+                h_cnt <= 0;
+                if (s_one == 9) begin
+                    s_one <= 0;
+                    if (s_ten == 5) begin
+                        s_ten <= 0;
+                        if (m_one == 9) begin
+                            m_one <= 0;
+                            if (m_ten == 5) begin
+                                m_ten <= 0;
+                                if (h_one == 9) begin
+                                    h_one <= 0;
+                                    if (h_ten == 2 && h_one == 3) begin
+                                        h_ten <= 0;
+                                    end else begin
+                                        h_ten <= h_ten + 1;
+                                    end
+                                end else begin
+                                    h_one <= h_one + 1;
+                                end
                             end else begin
-                                h_ten <= h_ten + 1;
+                                m_ten <= m_ten + 1;
                             end
                         end else begin
-                            h_one <= h_one + 1;
+                            m_one <= m_one + 1;
                         end
                     end else begin
-                        m_ten <= m_ten + 1;
+                        s_ten <= s_ten + 1;
                     end
                 end else begin
-                    m_one <= m_one + 1;
+                    s_one <= s_one + 1;
                 end
             end else begin
-                s_ten <= s_ten + 1;
+                h_cnt <= h_cnt + 1;
             end
-        end else begin
-            s_one <= s_one + 1;
         end
-    end else begin
-        h_cnt <= h_cnt + 1;
     end
 end
 
