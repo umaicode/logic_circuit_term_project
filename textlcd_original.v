@@ -1,4 +1,4 @@
-module textlcd(rst, clk, lce_e, lcd_rs, lcd_rw, lcd_data);
+module textlcd(rst, clk, lcd_e, lcd_rs, lcd_rw, lcd_data);
 
 input rst, clk;
 output lcd_e, lcd_rs, lcd_rw;
@@ -9,7 +9,7 @@ reg lcd_rs, lcd_rw;
 reg [7:0] lcd_data;
 
 reg [2:0] state;
-parameter dalay = 3'b000, function_set = 3'b001, entry_mode = 3'b010, disp_onoff = 3'b011, line1 = 3b'100, line2 = 3'b101, delay_t = 3'b110, clear_disp = 3'b111;
+parameter delay = 3'b000, function_set = 3'b001, entry_mode = 3'b010, disp_onoff = 3'b011, line1 = 3'b100, line2 = 3'b101, delay_t = 3'b110, clear_disp = 3'b111;
 
 integer cnt;
 integer cnt_100hz;
