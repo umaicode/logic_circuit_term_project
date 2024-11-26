@@ -2,6 +2,8 @@ module watch(
     input clk,   // 1kHz clock
     input rst,   // Reset signal
     input mode_btn, // 모드 변경 버튼 입력
+    input setting_btn, // 시간 설정 버튼 입력
+    input [3:0] keypad_input, // Keypad 입력 값 (0~9)
     output [7:0] seg_data, // 7-세그먼트 데이터
     output [7:0] seg_com,  // 7-세그먼트 자리 선택
     output lcd_e, lcd_rs, lcd_rw, // LCD 제어 신호
@@ -9,8 +11,10 @@ module watch(
 );
 
 // -------------------- 모드 관리 --------------------
-reg [1:0] mode; // 2비트 모드: 00=WATCH, 01=ALARM, 10=STOPWATCH
+reg [1:0] mode; // 2비트 모드: 00=WATCH, 01=ALARM, 10=STOPWATCH, 11=SETTING
 reg mode_btn_prev;
+reg setting_btn_prev;
+reg [3:0] step; // 설정 단계 : 0=시(10), 1=시(1)... 5=초(1)
 
 // 기존 시계 기능 (seg_data 및 seg_com 생성)
 reg [3:0] h_ten, h_one, m_ten, m_one, s_ten, s_one;
@@ -31,13 +35,24 @@ always @(posedge clk or posedge rst) begin
     if (rst) begin
         mode <= 2'b00; // 초기값: WATCH
         mode_btn_prev <= 1'b0;
+        setting_btn_prev <= 1'b0;
+        step <= 0;
     end else begin
+        // 모드 변경 버튼 처리
         if (mode_btn && !mode_btn_prev) begin // 버튼의 상승 엣지 감지
             mode <= mode + 1'b1;
             if (mode == 2'b10) // STOPWATCH 다음은 WATCH로 순환
                 mode <= 2'b00;
         end
+
+        // 설정 버튼 처리
+        if (setting_btn && !setting_btn_prev) begin
+            mode <= 2'b11;  // SETTING 모드로 변경
+            step <= 0; // 설정 초기화
+        end
+
         mode_btn_prev <= mode_btn;
+        setting_btn_prev <= setting_btn;
     end
 end
 
@@ -88,6 +103,28 @@ always @(posedge rst or posedge clk)
             h_one = h_one + 1;
         end
     end
+
+// -------------------- 설정 모드 처리 --------------------
+always @(posedge clk or posedge rst) begin
+    if (rst) begin
+        h_ten <= 0;
+        h_one <= 0;
+        m_ten <= 0;
+        m_one <= 0;
+        s_ten <= 0;
+        s_one <= 0;
+        step <= 0;
+    end else if (mode = 2'b11) begin
+        case (step)
+            0: if (keypad_input <= 4'd2) begin h_ten <= keypad_input; step <= step + 1; end
+            1: if ((h_ten < 4'd2 && keypad_input <= 4'd9) || (h_ten == 4'd2 && keypad_input <= 4'd3)) begin h_one <= keypad_input; step <= step + 1; end
+            2: if (keypad_input <= 4'd5) begin m_ten <= keypad_input; step <= step + 1; end
+            3: if (keypad_input <= 4'd9) begin m_one <= keypad_input; step <= step + 1; end
+            4: if (keypad_input <= 4'd5) begin s_ten <= keypad_input; step <= step + 1; end
+            5: if (keypad_input <= 4'd9) begin s_one <= keypad_input; mode <= 2'b00; end // 설정 완료 후 WATCH 모드로 전환
+        endcase
+    end
+end
 
 // -------------------- data conversion --------------------
 // TODO : 시간 출력을 위한 seg_decode 추가
