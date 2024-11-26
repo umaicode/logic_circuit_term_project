@@ -36,6 +36,16 @@ keypad decoder 필요.
 3. mode 변경은 reset button처럼 버튼으로 구현하고자 함.
 4. LCD는 책을 먼저 보고 결정.
 
+## watch_4.v
+### 주요 변경 사항
+1. lcd 구현
+
+## textlcd.v
+1. watch_4.v, lcd_control.v 와 세트
+
+## textlcd_original.v
+1. textlcd.v의 원본
+
 
 ## seg_decode.v
 
