@@ -1,12 +1,13 @@
-module watch(clk, rst, set_time, num_input, seg_data, seg_com);
+module watch(
+    input clk,         // 1kHz clock
+    input rst,         // Reset
+    input set_time,    // 시간 설정 모드 활성화
+    input [9:0] num_input,  // 숫자 입력 (0~9)
+    output reg [7:0] seg_data,
+    output reg [7:0] seg_com
+);
 
-input clk;  // 1kHz clock
-input rst;  // Reset
-input set_time;  // 시간 설정 모드 활성화
-input [9:0] num_input;  // 숫자 입력 (0~9)
-output reg [7:0] seg_data;
-output reg [7:0] seg_com;
-
+// 카운터와 레지스터 선언
 reg [9:0] h_cnt;
 reg [3:0] h_ten, h_one, m_ten, m_one, s_ten, s_one;
 
@@ -19,7 +20,7 @@ wire [7:0] seg_h_ten, seg_h_one;
 wire [7:0] seg_m_ten, seg_m_one;
 wire [7:0] seg_s_ten, seg_s_one;
 
-// 세그먼트 디코딩
+// 디코딩 모듈 연결
 seg_decode u0 (h_ten, seg_h_ten);
 seg_decode u1 (h_one, seg_h_one);
 seg_decode u2 (m_ten, seg_m_ten);
@@ -32,12 +33,9 @@ always @(posedge clk or posedge rst) begin
     if (rst) begin
         input_cnt <= 0;
         input_mode <= 1; // 입력 모드 활성화
-        h_ten <= 0;
-        h_one <= 0;
-        m_ten <= 0;
-        m_one <= 0;
-        s_ten <= 0;
-        s_one <= 0;
+        h_ten <= 0; h_one <= 0;
+        m_ten <= 0; m_one <= 0;
+        s_ten <= 0; s_one <= 0;
     end else if (set_time) begin
         input_mode <= 1;  // 입력 모드 활성화
     end else if (input_mode) begin
@@ -76,7 +74,6 @@ always @(posedge clk or posedge rst) begin
                             h_one <= 0;
                             if (h_ten == 2 && h_one == 3) begin
                                 h_ten <= 0;
-                                h_one <= 0;
                             end else begin
                                 h_ten <= h_ten + 1;
                             end
