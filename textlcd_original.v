@@ -22,7 +22,7 @@ begin
             cnt_100hz = 0;
             clk_100hz = 1'b0;
         end
-    else if (cnt_100hz >= 4)
+    else if (cnt_100hz >= 9)
         begin
             cnt_100hz = 0;
             clk_100hz = ~clk_100hz;
