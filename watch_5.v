@@ -1,9 +1,9 @@
 module watch(clk, rst, seg_data, seg_com, key_input, btn_done);
 
-input clk;           // 1kHz clock
+input clk;             // 1kHz clock
 input rst;
-input [9:0] key_input;  // 넘버패드 입력 (10개 핀: key_input[0] ~ key_input[9])
-input btn_done;      // 설정 완료 버튼
+input [9:0] key_input; // 넘버패드 입력 (10개 핀: key_input[0] ~ key_input[9])
+input btn_done;        // 설정 완료 버튼
 output reg [7:0] seg_data;
 output reg [7:0] seg_com;
 
@@ -15,7 +15,10 @@ reg [2:0] s_cnt;
 
 // 시간 설정 모드 플래그
 reg set_mode;
-reg [2:0] current_digit;  // 현재 입력 중인 자리 (0: h_ten, 1: h_one, ...)
+reg [2:0] current_digit; // 현재 입력 중인 자리 (0: h_ten, 1: h_one, ...)
+
+// key_input 처리용 신호
+reg [3:0] detected_key; // 감지된 숫자 값
 
 // 시계 카운터는 그대로 사용
 // watch count
@@ -67,48 +70,52 @@ always @(posedge rst or posedge clk)
         end
     end
 
-// 설정 모드 구현
+// key_input 감지 로직
 always @(posedge clk or posedge rst) begin
     if (rst) begin
-        set_mode <= 1'b1;  // 초기화 시 설정 모드 활성화
-        current_digit <= 3'd0;  // 초기화 시 h_ten부터 시작
-        h_ten <= 4'd0; h_one <= 4'd0; m_ten <= 4'd0; m_one <= 4'd0; s_ten <= 4'd0; s_one <= 4'd0;
-    end else if (btn_done) begin
-        set_mode <= 1'b0;  // 설정 완료 시 모드 비활성화
-    end else if (set_mode) begin
-        // 넘버패드 입력 처리
-        if (|key_input) begin  // 키 입력이 감지되었을 때
-            case (key_input)
-                10'b0000000001: process_input(4'd0);  // 키 0
-                10'b0000000010: process_input(4'd1);  // 키 1
-                10'b0000000100: process_input(4'd2);  // 키 2
-                10'b0000001000: process_input(4'd3);  // 키 3
-                10'b0000010000: process_input(4'd4);  // 키 4
-                10'b0000100000: process_input(4'd5);  // 키 5
-                10'b0001000000: process_input(4'd6);  // 키 6
-                10'b0010000000: process_input(4'd7);  // 키 7
-                10'b0100000000: process_input(4'd8);  // 키 8
-                10'b1000000000: process_input(4'd9);  // 키 9
-            endcase
-        end
+        detected_key <= 4'd15; // 초기화
+    end else begin
+        // key_input 중 하나가 활성화된 경우
+        case (key_input)
+            10'b0000000001: detected_key <= 4'd0;
+            10'b0000000010: detected_key <= 4'd1;
+            10'b0000000100: detected_key <= 4'd2;
+            10'b0000001000: detected_key <= 4'd3;
+            10'b0000010000: detected_key <= 4'd4;
+            10'b0000100000: detected_key <= 4'd5;
+            10'b0001000000: detected_key <= 4'd6;
+            10'b0010000000: detected_key <= 4'd7;
+            10'b0100000000: detected_key <= 4'd8;
+            10'b1000000000: detected_key <= 4'd9;
+            default: detected_key <= 4'd15; // 아무 키도 입력되지 않음
+        endcase
     end
 end
 
-// 입력 처리 함수
-task process_input(input [3:0] value);
-begin
-    case (current_digit)
-        3'd0: h_ten <= (value > 4'd2) ? 4'd0 : value;  // h_ten 최대값: 2
-        3'd1: h_one <= (h_ten == 4'd2 && value > 4'd3) ? 4'd0 : value;  // h_one 최대값: 3 (h_ten이 2일 때)
-        3'd2: m_ten <= (value > 4'd5) ? 4'd0 : value;  // m_ten 최대값: 5
-        3'd3: m_one <= value;  // m_one 최대값: 9
-        3'd4: s_ten <= (value > 4'd5) ? 4'd0 : value;  // s_ten 최대값: 5
-        3'd5: s_one <= value;  // s_one 최대값: 9
-    endcase
-    // 다음 자리로 이동
-    current_digit <= (current_digit == 3'd5) ? 3'd0 : current_digit + 1;
+// 설정 모드 구현
+always @(posedge clk or posedge rst) begin
+    if (rst) begin
+        set_mode <= 1'b1; // 초기화 시 설정 모드 활성화
+        current_digit <= 3'd0; // 초기화 시 h_ten부터 시작
+        h_ten <= 4'd0; h_one <= 4'd0; m_ten <= 4'd0; m_one <= 4'd0; s_ten <= 4'd0; s_one <= 4'd0;
+    end else if (btn_done) begin
+        set_mode <= 1'b0; // 설정 완료 시 모드 비활성화
+    end else if (set_mode) begin
+        // 숫자 감지 및 처리
+        if (detected_key != 4'd15) begin
+            case (current_digit)
+                3'd0: h_ten <= (detected_key > 4'd2) ? 4'd0 : detected_key; // h_ten 최대값: 2
+                3'd1: h_one <= (h_ten == 4'd2 && detected_key > 4'd3) ? 4'd0 : detected_key; // h_one 최대값: 3 (h_ten이 2일 때)
+                3'd2: m_ten <= (detected_key > 4'd5) ? 4'd0 : detected_key; // m_ten 최대값: 5
+                3'd3: m_one <= detected_key; // m_one 최대값: 9
+                3'd4: s_ten <= (detected_key > 4'd5) ? 4'd0 : detected_key; // s_ten 최대값: 5
+                3'd5: s_one <= detected_key; // s_one 최대값: 9
+            endcase
+            // 다음 자리로 이동
+            current_digit <= (current_digit == 3'd5) ? 3'd0 : current_digit + 1;
+        end
+    end
 end
-endtask
 
 // 디코딩
 seg_decode u0 (h_ten, seg_h_ten);
