@@ -80,7 +80,7 @@ always @(*) begin
                 4'd9 : lcd_data = 8'b01010100; // 'T'
                 default: lcd_data = 8'b00100000; // 공백
             endcase
-        default: lcd_data = 8'b00100000; // 공백
+        end
     endcase
 end
 
