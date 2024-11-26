@@ -42,7 +42,7 @@ keypad decoder 필요.
 이 로직은 앞의 예제에서 설계한 7-segment decoder의 회로이다. data_in이라는 4비트의 포트의 입력이 들어왔을 때, 해당 값을 표시할 수 있는 7-segment 디코딩 값이 출력되도록 설계되었다.
 
 ## I/O ports
-
+### watch.v
 |포트이름|핀 번호|하드웨어 설명|
 |:------------:|:------------:|:------------:|
 |rst|K4|SW_1|
@@ -56,10 +56,28 @@ keypad decoder 필요.
 |seg_com[1]|K3|AR_SEG_S6|
 |seg_com[0]|K5|AR_SEG_S7|
 |seg_data[7]|F1|AR_SEG_A|
-|seg_data[6]|F5|AR_SEG_B
+|seg_data[6]|F5|AR_SEG_B|
 |seg_data[5]|E2|AR_SEG_C|
 |seg_data[4]|E4|AR_SEG_D|
 |seg_data[3]|J1|AR_SEG_E|
 |seg_data[2]|J3|AR_SEG_F|
 |seg_data[1]|J7|AR_SEG_G|
 |seg_data[0]|H2|AR_SEG_DP|
+
+### textlcd.v
+|포트이름|핀 번호|하드웨어 설명|
+|:------------:|:------------:|:------------:|
+|rst|K4|SW_1|
+|clk|B6|main_clock1|
+||||
+|lcd_data[7]|D1|LCD_D7|
+|lcd_data[6]|C1|LCD_D6|
+|lcd_data[5]|C5|LCD_D5|
+|lcd_data[4]|A2|LCD_D4|
+|lcd_data[3]|D4|LCD_D3|
+|lcd_data[2]|C3|LCD_D2|
+|lcd_data[1]|B2|LCD_D1|
+|lcd_data[0]|A4|LCD_D0|
+|lcd_e|F5|LCD_E|
+|lcd_rs|E2|LCD_RS|
+|lcd_rw|E4|LCD_RW|
