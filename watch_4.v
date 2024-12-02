@@ -3,7 +3,7 @@ module watch(
     input rst,   // Reset signal
     input mode_btn, // 모드 변경 버튼 입력
     input setting_btn, // 시간 설정 버튼 입력
-    input [3:0] keypad_input, // Keypad 입력 값 (0~9)
+    input [9:0] keypad_input, // Keypad 입력 값 (0~9)
     output [7:0] seg_data, // 7-세그먼트 데이터
     output [7:0] seg_com,  // 7-세그먼트 자리 선택
     output lcd_e, lcd_rs, lcd_rw, // LCD 제어 신호
