@@ -69,16 +69,16 @@ always @(posedge motor_sense)
 always @(posedge clk)
     if (state_m == s2)
         case (cnt_sense)
-            0 : seg_dat : 8'b1111_1100;
-            1 : seg_dat : 8'b0110_0000;
-            2 : seg_dat : 8'b1101_1010;
-            3 : seg_dat : 8'b1111_0010;
-            4 : seg_dat : 8'b0110_0110;
-            5 : seg_dat : 8'b1011_0110;
-            6 : seg_dat : 8'b1011_1110;
-            7 : seg_dat : 8'b1110_0000;
-            8 : seg_dat : 8'b1111_1110;
-            9 : seg_dat : 8'b1110_0110;
+            0 : seg_dat = 8'b1111_1100;
+            1 : seg_dat = 8'b0110_0000;
+            2 : seg_dat = 8'b1101_1010;
+            3 : seg_dat = 8'b1111_0010;
+            4 : seg_dat = 8'b0110_0110;
+            5 : seg_dat = 8'b1011_0110;
+            6 : seg_dat = 8'b1011_1110;
+            7 : seg_dat = 8'b1110_0000;
+            8 : seg_dat = 8'b1111_1110;
+            9 : seg_dat = 8'b1110_0110;
             default : seg_dat : 8'b0000_0000;
         endcase
     else
