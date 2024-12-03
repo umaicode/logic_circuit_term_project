@@ -9,7 +9,14 @@ reg lcd_rs, lcd_rw;
 reg [7:0] lcd_data;
 
 reg [2:0] state;
-parameter delay = 3'b000, function_set = 3'b001, entry_mode = 3'b010, disp_onoff = 3'b011, line1 = 3'b100, line2 = 3'b101, delay_t = 3'b110, clear_disp = 3'b111;
+parameter delay = 3'b000,
+        function_set = 3'b001,
+        entry_mode = 3'b010,
+        disp_onoff = 3'b011,
+        line1 = 3'b100,
+        line2 = 3'b101,
+        delay_t = 3'b110,
+        clear_disp = 3'b111;
 
 integer cnt;
 integer cnt_100hz;
@@ -22,7 +29,7 @@ begin
             cnt_100hz = 0;
             clk_100hz = 1'b0;
         end
-    else if (cnt_100hz >= 9)
+    else if (cnt_100hz >= 4)
         begin
             cnt_100hz = 0;
             clk_100hz = ~clk_100hz;
