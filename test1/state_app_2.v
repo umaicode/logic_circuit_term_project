@@ -2,9 +2,12 @@ module state_app(
     input rst,         // 리셋 신호 (active high)
     input clk,         // 1kHz 입력 클럭
     input mode,        // 상태 전환 신호
-    output reg [7:0] seg_data, seg_com,       // 7-세그먼트 디스플레이 데이터 및 공통 신호
-    output lcd_e, lcd_rs, lcd_rw,        // LCD 제어 신호
-    output [7:0] lcd_data                // LCD 데이터
+    input start,       // 스톱워치 시작 신호
+    input set_time,    // 시간 설정 신호
+    input [9:0] keypad, // 키패드 입력 신호
+    output reg [7:0] seg_data, seg_com, // 7-세그먼트 디스플레이 데이터 및 공통 신호
+    output lcd_e, lcd_rs, lcd_rw,       // LCD 제어 신호
+    output [7:0] lcd_data               // LCD 데이터
 );
 
     // 내부 신호 선언
@@ -42,6 +45,8 @@ module state_app(
     watch watch_inst (
         .clk(clk),       // 시계는 1kHz 클럭 사용
         .rst(rst),       // 리셋 신호
+        .set_time(set_time), // 시간 설정 신호
+        .keypad(keypad),     // 키패드 입력 신호
         .seg_data(watch_seg_data), // 시계 데이터 출력
         .seg_com(watch_seg_com)    // 시계 공통 신호 출력
     );
@@ -53,7 +58,7 @@ module state_app(
     stopwatch stopwatch_inst (
         .clk(clk),           // 1kHz 클럭
         .rst(rst),           // 리셋 신호
-        .start(1'b0),        // 모듈 내부에서 버튼으로 제어
+        .start(start),        // 모듈 내부에서 버튼으로 제어
         .seg_data(stopwatch_seg_data), // 스톱워치 데이터 출력
         .seg_com(stopwatch_seg_com)    // 스톱워치 공통 신호 출력
     );
