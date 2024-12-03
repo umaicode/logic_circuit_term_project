@@ -11,7 +11,6 @@ module watch(
     reg [23:0] time_input;  // 키패드 입력 저장 (HHMMSS)
     reg [3:0] input_cnt;    // 키패드 입력 카운트
     reg set_complete;       // 설정 완료 플래그
-    reg [2:0] s_cnt;        // 세그먼트 선택 카운터
     reg [9:0] clk_counter;  // 1Hz 클럭 생성용 카운터
     reg increment_time;     // 1Hz 신호 생성 플래그
 
@@ -35,13 +34,14 @@ module watch(
         end
     end
 
-    // 키패드 입력 처리
+    // 키패드 입력 처리 및 시간 설정
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             time_input <= 24'b0;
             input_cnt <= 0;
             set_complete <= 0;
         end else if (set_time) begin
+            // 시간 설정 모드
             if (input_cnt < 6) begin
                 if (keypad >= 0 && keypad <= 9) begin
                     time_input <= (time_input * 10) + keypad; // 숫자 입력 저장
@@ -74,17 +74,15 @@ module watch(
             s_ten <= 4'd0;
             s_one <= 4'd0;
         end else if (~set_time && increment_time) begin
-            // 초 증가
+            // 시간 증가 모드
             if (s_one == 9) begin
                 s_one <= 0;
                 if (s_ten == 5) begin
                     s_ten <= 0;
-                    // 분 증가
                     if (m_one == 9) begin
                         m_one <= 0;
                         if (m_ten == 5) begin
                             m_ten <= 0;
-                            // 시 증가
                             if (h_one == 9) begin
                                 h_one <= 0;
                                 if (h_ten == 2 && h_one == 3) begin
@@ -110,48 +108,26 @@ module watch(
         end
     end
 
-    // 7세그먼트 디스플레이 (6자리 출력)
+    // 7세그먼트 디스플레이 로직 (6자리 출력)
     always @(posedge clk) begin
-        if (rst) s_cnt <= 0;
-        else s_cnt <= s_cnt + 1;
-    end
-
-    always @(posedge clk) begin
+        // 디스플레이 제어
+        seg_com <= 8'b1111_1111; // 기본값
         case (s_cnt)
-            3'd0: seg_com <= 8'b0111_1111; // 첫 번째 자리
-            3'd1: seg_com <= 8'b1011_1111; // 두 번째 자리
-            3'd2: seg_com <= 8'b1101_1111; // 세 번째 자리
-            3'd3: seg_com <= 8'b1110_1111; // 네 번째 자리
-            3'd4: seg_com <= 8'b1111_0111; // 다섯 번째 자리
-            3'd5: seg_com <= 8'b1111_1011; // 여섯 번째 자리
-            3'd6: seg_com <= 8'b1111_1101; // 비활성화
-            3'd7: seg_com <= 8'b1111_1110; // 비활성화
+            3'd0: seg_data <= seg_digit[5]; // HH 10자리
+            3'd1: seg_data <= seg_digit[4]; // HH 1자리
+            3'd2: seg_data <= seg_digit[3]; // MM 10자리
+            3'd3: seg_data <= seg_digit[2]; // MM 1자리
+            3'd4: seg_data <= seg_digit[1]; // SS 10자리
+            3'd5: seg_data <= seg_digit[0]; // SS 1자리
         endcase
     end
 
-    always @(posedge clk) begin
-        if (set_complete || ~set_time) begin
-            case (s_cnt)
-                3'd0: seg_data <= seg_digit[5]; // 가장 왼쪽 (HH의 10의 자리)
-                3'd1: seg_data <= seg_digit[4]; // HH의 1의 자리
-                3'd2: seg_data <= seg_digit[3]; // MM의 10의 자리
-                3'd3: seg_data <= seg_digit[2]; // MM의 1의 자리
-                3'd4: seg_data <= seg_digit[1]; // SS의 10의 자리
-                3'd5: seg_data <= seg_digit[0]; // SS의 1의 자리
-                3'd6: seg_data <= 8'b0000_0000; // 비활성화
-                3'd7: seg_data <= 8'b0000_0000; // 비활성화
-            endcase
-        end else begin
-            seg_data <= 8'b0000_0000; // 입력 완료 전에는 세그먼트 비활성화
-        end
-    end
-
     // 7세그먼트 디코딩
-    seg_decode u0 (h_ten, seg_digit[5]); // HH의 10의 자리
-    seg_decode u1 (h_one, seg_digit[4]); // HH의 1의 자리
-    seg_decode u2 (m_ten, seg_digit[3]); // MM의 10의 자리
-    seg_decode u3 (m_one, seg_digit[2]); // MM의 1의 자리
-    seg_decode u4 (s_ten, seg_digit[1]); // SS의 10의 자리
-    seg_decode u5 (s_one, seg_digit[0]); // SS의 1의 자리
+    seg_decode u0 (h_ten, seg_digit[5]);
+    seg_decode u1 (h_one, seg_digit[4]);
+    seg_decode u2 (m_ten, seg_digit[3]);
+    seg_decode u3 (m_one, seg_digit[2]);
+    seg_decode u4 (s_ten, seg_digit[1]);
+    seg_decode u5 (s_one, seg_digit[0]);
 
 endmodule
