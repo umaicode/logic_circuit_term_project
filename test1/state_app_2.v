@@ -2,10 +2,7 @@ module state_app(
     input rst,         // 리셋 신호 (active high)
     input clk,         // 1kHz 입력 클럭
     input mode,        // 상태 전환 신호
-    input motor_sense, // 모터 센서 신호
-    output [3:0] fled_r, fled_g, fled_b, // RGB LED 제어
-    output [7:0] seg_dat, seg_com,       // 7-세그먼트 디스플레이 데이터 및 공통 신호
-    output [3:0] step_motor,             // 스텝 모터 제어
+    output reg [7:0] seg_data, seg_com,       // 7-세그먼트 디스플레이 데이터 및 공통 신호
     output lcd_e, lcd_rs, lcd_rw,        // LCD 제어 신호
     output [7:0] lcd_data                // LCD 데이터
 );
@@ -64,27 +61,27 @@ module state_app(
     // 상태별 7-세그먼트 디스플레이 출력
     always @(posedge clk_100hz or posedge rst) begin
         if (rst) begin
-            seg_dat <= 8'b0000_0000;
+            seg_data <= 8'b0000_0000;
             seg_com <= 8'b1111_1111;
         end else begin
             case (state_m)
                 s0: begin
                     // 시계 출력
-                    seg_dat <= watch_seg_data;
+                    seg_data <= watch_seg_data;
                     seg_com <= watch_seg_com;
                 end
                 s1: begin
                     // 스톱워치 출력
-                    seg_dat <= stopwatch_seg_data;
+                    seg_data <= stopwatch_seg_data;
                     seg_com <= stopwatch_seg_com;
                 end
                 s2: begin
                     // 알람 설정 (나중에 구현)
-                    seg_dat <= 8'b0000_0000; // 기본값
+                    seg_data <= 8'b0000_0000; // 기본값
                     seg_com <= 8'b1111_1111; // 기본값
                 end
                 default: begin
-                    seg_dat <= 8'b0000_0000;
+                    seg_data <= 8'b0000_0000;
                     seg_com <= 8'b1111_1111;
                 end
             endcase
