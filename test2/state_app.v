@@ -63,7 +63,7 @@ module state_app(
     assign lcd_rw = 1'b0; // 항상 쓰기 모드
 
     // 상태별 7-세그먼트 디스플레이 출력
-    always @(posedge clk_100hz or posedge rst) begin
+    always @(posedge clk or posedge rst) begin
         if (rst) begin
             seg_data <= 8'b0000_0000;
             seg_com <= 8'b1111_1111;
