@@ -40,6 +40,15 @@ keypad decoder 필요.
 ### 주요 변경 사항
 1. lcd 구현
 
+## watch_5.v
+### 작동 안함
+
+## watch_6.v
+### 작동 안함
+
+## watch_7.v
+### 12/10 실험 예정 with piezo
+
 ## textlcd.v
 1. watch_4.v, lcd_control.v 와 세트
 
@@ -91,3 +100,6 @@ keypad decoder 필요.
 |lcd_e|F5|LCD_E|
 |lcd_rs|E2|LCD_RS|
 |lcd_rw|E4|LCD_RW|
+
+## piezo.v
+1. piezo clock이 현재 1 Mhz인데 1 khz로 바꿔야 한다.
