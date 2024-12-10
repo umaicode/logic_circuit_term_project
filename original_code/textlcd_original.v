@@ -8,7 +8,6 @@ wire lcd_e;
 reg lcd_rs, lcd_rw;
 reg [7:0] lcd_data;
 
-reg [9:0] cnt;
 reg [2:0] state;
 parameter delay = 3'b000,
         function_set = 3'b001,
