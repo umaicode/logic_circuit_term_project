@@ -30,21 +30,21 @@ reg [9:0] keypad_prev;
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         current_digit <= 4'd0;
-        keypad_prev <= 10'b1111111111;
+        keypad_prev <= 10'b0000000000;
     end else begin
         keypad_prev <= keypad;
-        if (keypad != 10'b1111111111 && keypad_prev == 10'b1111111111) begin
+        if (keypad != 10'b0000000000 && keypad_prev == 10'b0000000000) begin
             case (keypad)
-                10'b1111111110: current_digit <= 4'd0;
-                10'b1111111101: current_digit <= 4'd1;
-                10'b1111111011: current_digit <= 4'd2;
-                10'b1111110111: current_digit <= 4'd3;
-                10'b1111101111: current_digit <= 4'd4;
-                10'b1111011111: current_digit <= 4'd5;
-                10'b1110111111: current_digit <= 4'd6;
-                10'b1101111111: current_digit <= 4'd7;
-                10'b1011111111: current_digit <= 4'd8;
-                10'b0111111111: current_digit <= 4'd9;
+                10'b0000000001: current_digit <= 4'd0;
+                10'b0000000010: current_digit <= 4'd1;
+                10'b0000000100: current_digit <= 4'd2;
+                10'b0000001000: current_digit <= 4'd3;
+                10'b0000010000: current_digit <= 4'd4;
+                10'b0000100000: current_digit <= 4'd5;
+                10'b0001000000: current_digit <= 4'd6;
+                10'b0010000000: current_digit <= 4'd9;
+                10'b0100000000: current_digit <= 4'd7;
+                10'b1000000000: current_digit <= 4'd8;
                 default: current_digit <= 4'd0;
             endcase
         end
@@ -64,7 +64,7 @@ always @(posedge clk or posedge rst) begin
         s_ten <= 0; s_one <= 0;
     end else if (dip_sw) begin
         // 시간 설정 모드
-        if (keypad != 10'b1111111111) begin
+        if (keypad != 10'b0000000000) begin
             case (input_cnt)
                 0: h_ten <= current_digit;
                 1: h_one <= current_digit;
