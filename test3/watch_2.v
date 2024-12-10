@@ -20,27 +20,34 @@ wire [7:0] seg_s_ten, seg_s_one;
 reg [2:0] input_cnt;       // 0부터 5까지의 입력 카운터
 reg [3:0] current_digit;   // 현재 입력된 키패드 숫자
 reg [9:0] h_cnt;           // 1초 카운터
+reg input_done;            // 입력 완료 플래그
 
 // -----------------------------
-// 키패드 입력 디코딩
+// 키패드 입력 디코딩 (디바운싱 추가)
 // -----------------------------
+reg [9:0] keypad_prev;
+
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         current_digit <= 4'd0;
-    end else if (keypad != 10'b1111111111) begin
-        case (keypad)
-            10'b1111111110: current_digit <= 4'd0;
-            10'b1111111101: current_digit <= 4'd1;
-            10'b1111111011: current_digit <= 4'd2;
-            10'b1111110111: current_digit <= 4'd3;
-            10'b1111101111: current_digit <= 4'd4;
-            10'b1111011111: current_digit <= 4'd5;
-            10'b1110111111: current_digit <= 4'd6;
-            10'b1101111111: current_digit <= 4'd7;
-            10'b1011111111: current_digit <= 4'd8;
-            10'b0111111111: current_digit <= 4'd9;
-            default: current_digit <= 4'd0;
-        endcase
+        keypad_prev <= 10'b1111111111;
+    end else begin
+        keypad_prev <= keypad;
+        if (keypad != 10'b1111111111 && keypad_prev == 10'b1111111111) begin
+            case (keypad)
+                10'b1111111110: current_digit <= 4'd0;
+                10'b1111111101: current_digit <= 4'd1;
+                10'b1111111011: current_digit <= 4'd2;
+                10'b1111110111: current_digit <= 4'd3;
+                10'b1111101111: current_digit <= 4'd4;
+                10'b1111011111: current_digit <= 4'd5;
+                10'b1110111111: current_digit <= 4'd6;
+                10'b1101111111: current_digit <= 4'd7;
+                10'b1011111111: current_digit <= 4'd8;
+                10'b0111111111: current_digit <= 4'd9;
+                default: current_digit <= 4'd0;
+            endcase
+        end
     end
 end
 
@@ -49,9 +56,9 @@ end
 // -----------------------------
 always @(posedge clk or posedge rst) begin
     if (rst) begin
-        // 초기화
         input_cnt <= 0;
         h_cnt <= 0;
+        input_done <= 0;
         h_ten <= 0; h_one <= 0;
         m_ten <= 0; m_one <= 0;
         s_ten <= 0; s_one <= 0;
@@ -64,12 +71,15 @@ always @(posedge clk or posedge rst) begin
                 2: m_ten <= current_digit;
                 3: m_one <= current_digit;
                 4: s_ten <= current_digit;
-                5: s_one <= current_digit;
+                5: begin
+                    s_one <= current_digit;
+                    input_done <= 1; // 설정 완료
+                end
             endcase
             input_cnt <= input_cnt + 1;
             if (input_cnt == 5) input_cnt <= 0; // 6자리 입력 후 초기화
         end
-    end else begin
+    end else if (input_done) begin
         // 시계 카운터 모드
         if (h_cnt >= 999) begin
             h_cnt <= 0;
