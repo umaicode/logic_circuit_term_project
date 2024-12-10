@@ -22,6 +22,29 @@ reg [3:0] current_digit;   // 현재 입력된 키패드 숫자
 reg [9:0] h_cnt;           // 1초 카운터
 
 // -----------------------------
+// 키패드 입력 디코딩
+// -----------------------------
+always @(posedge clk or posedge rst) begin
+    if (rst) begin
+        current_digit <= 4'd0;
+    end else if (keypad != 10'b1111111111) begin
+        case (keypad)
+            10'b1111111110: current_digit <= 4'd0;
+            10'b1111111101: current_digit <= 4'd1;
+            10'b1111111011: current_digit <= 4'd2;
+            10'b1111110111: current_digit <= 4'd3;
+            10'b1111101111: current_digit <= 4'd4;
+            10'b1111011111: current_digit <= 4'd5;
+            10'b1110111111: current_digit <= 4'd6;
+            10'b1101111111: current_digit <= 4'd7;
+            10'b1011111111: current_digit <= 4'd8;
+            10'b0111111111: current_digit <= 4'd9;
+            default: current_digit <= 4'd0;
+        endcase
+    end
+end
+
+// -----------------------------
 // 세팅 모드 및 시계 카운터 통합
 // -----------------------------
 always @(posedge clk or posedge rst) begin
@@ -33,21 +56,18 @@ always @(posedge clk or posedge rst) begin
         m_ten <= 0; m_one <= 0;
         s_ten <= 0; s_one <= 0;
     end else if (dip_sw) begin
-        // 세팅 모드: 키패드 입력 처리
+        // 시간 설정 모드
         if (keypad != 10'b1111111111) begin
-            current_digit <= keypad[3:0];    // 하위 4비트만 사용
             case (input_cnt)
                 0: h_ten <= current_digit;
                 1: h_one <= current_digit;
                 2: m_ten <= current_digit;
                 3: m_one <= current_digit;
                 4: s_ten <= current_digit;
-                5: begin
-                    s_one <= current_digit;
-                    input_cnt <= 0;           // 입력 완료 후 카운터 초기화
-                end
+                5: s_one <= current_digit;
             endcase
             input_cnt <= input_cnt + 1;
+            if (input_cnt == 5) input_cnt <= 0; // 6자리 입력 후 초기화
         end
     end else begin
         // 시계 카운터 모드
@@ -123,6 +143,29 @@ always @(posedge clk or posedge rst) begin
             default: begin seg_com <= 8'b1111_1111; seg_data <= 8'b0000_0000; end
         endcase
     end
+end
+
+endmodule
+
+// -----------------------------
+// 세그먼트 디코딩 모듈
+// -----------------------------
+module seg_decode(input [3:0] digit, output reg [7:0] seg);
+
+always @(*) begin
+    case (digit)
+        4'd0: seg = 8'b1100_0000;
+        4'd1: seg = 8'b1111_1001;
+        4'd2: seg = 8'b1010_0100;
+        4'd3: seg = 8'b1011_0000;
+        4'd4: seg = 8'b1001_1001;
+        4'd5: seg = 8'b1001_0010;
+        4'd6: seg = 8'b1000_0010;
+        4'd7: seg = 8'b1111_1000;
+        4'd8: seg = 8'b1000_0000;
+        4'd9: seg = 8'b1001_0000;
+        default: seg = 8'b1111_1111; // 모든 세그먼트 끄기
+    endcase
 end
 
 endmodule
