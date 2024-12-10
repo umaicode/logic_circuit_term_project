@@ -1,85 +1,143 @@
-module textlcd(
-    input rst, clk,
-    input [1:0] mode, // 모드 선택: WATCH/ALARM/STOPWATCH
-    output lcd_e, lcd_rs, lcd_rw,
-    output [7:0] lcd_data
-);
+module textlcd(rst, clk, lcd_e, lcd_rs, lcd_rw, lcd_data);
 
-reg [3:0] cnt;
-wire [7:0] lcd_data_wire;
-reg[3:0] state;
-parameter DELAY = 3'b000, FUNCTION_SET = 3'b001, DISPLAY_ON = 3'b010, CLEAR_DISPLAY = 3'b011, ENTRY_MODE = 3'b100, READY = 3'b101;
+    input rst, clk;
+    output lcd_e, lcd_rs, lcd_rw;
+    output [7:0] lcd_data;
 
-integer timing_cnt;
+    wire lcd_e;
+    reg lcd_rs, lcd_rw;
+    reg [7:0] lcd_data;
 
+    reg [9:0] cnt;
+    reg [2:0] state;
+    parameter delay = 3'b000,
+              function_set = 3'b001,
+              entry_mode = 3'b010,
+              disp_onoff = 3'b011,
+              line1 = 3'b100,
+              line2 = 3'b101,
+              delay_t = 3'b110,
+              clear_disp = 3'b111;
 
-// LCD 제어 신호
-assign lcd_e = clk; // LCD Enable 신호
-assign lcd_rw = 1'b0; // 항상 Write 모드
+    reg [3:0] cnt_100hz;
+    reg clk_100hz;
 
-// lcd_control 인스턴스
-lcd_control u_lcd_control (
-    .mode(mode), 
-    .cnt(cnt),
-    .lcd_data(lcd_data_wire)
-);
-
-assign lcd_data = lcd_data_wire;
-
-// 초기화 상태 머신
-always @(posedge clk or posedge rst) begin
-    if (rst) begin
-        state <= DELAY;
-        timing_cnt <= 0;
-        cnt <= 0;
-    end else begin
-        case (state)
-            DELAY: begin
-                if (timing_cnt < 70) timing_cnt <= timing_cnt + 1; // 초기 딜레이
-                else begin
-                    timing_cnt <= 0;
-                    state <= FUNCTION_SET;
-                end
-            end
-            FUNCTION_SET: begin
-                if (timing_cnt == 30) begin
-                    lcd_rs <= 1'b0;
-                    lcd_data <= 8'b00111100; // Function Set
-                    timing_cnt <= 0;
-                    state <= DISPLAY_ON;
-                end else timing_cnt <= timing_cnt + 1;
-            end
-            DISPLAY_ON: begin
-                if (timing_cnt == 30) begin
-                    lcd_rs <= 1'b0;
-                    lcd_data <= 8'b00001100; // Display ON
-                    timing_cnt <= 0;
-                    state <= CLEAR_DISPLAY;
-                end else timing_cnt <= timing_cnt + 1;
-            end
-            CLEAR_DISPLAY: begin
-                if (timing_cnt == 100) begin
-                    lcd_rs <= 1'b0;
-                    lcd_data <= 8'b00000001; // Clear Display
-                    timing_cnt <= 0;
-                    state <= ENTRY_MODE;
-                end else timing_cnt <= timing_cnt + 1;
-            end
-            ENTRY_MODE: begin
-                if (timing_cnt == 30) begin
-                    lcd_rs <= 1'b0;
-                    lcd_data <= 8'b00000110; // Entry Mode
-                    timing_cnt <= 0;
-                    state <= READY;
-                end else timing_cnt <= timing_cnt + 1;
-            end
-            READY: begin
-                lcd_rs <= (cnt == 0) ? 1'b0 : 1'b1; // 첫 명령어는 명령 모드
-                if (cnt < 4'd11) cnt <= cnt + 1;
-                else cnt <= 0; // 반복
-            end
-        endcase
+    // 100Hz 클럭 생성
+    always @(posedge rst or posedge clk) begin
+        if (rst) begin
+            cnt_100hz <= 0;
+            clk_100hz <= 1'b0;
+        end else if (cnt_100hz >= 4) begin
+            cnt_100hz <= 0;
+            clk_100hz <= ~clk_100hz;
+        end else begin
+            cnt_100hz <= cnt_100hz + 1;
+        end
     end
-end
+
+    // 상태 전환 로직
+    always @(posedge rst or posedge clk_100hz) begin
+        if (rst) begin
+            state <= delay;
+            cnt <= 0;
+        end else begin
+            case (state)
+                delay: 
+                    if (cnt == 70) begin state <= function_set; cnt <= 0; end 
+                    else cnt <= cnt + 1;
+                function_set:
+                    if (cnt == 30) begin state <= disp_onoff; cnt <= 0; end 
+                    else cnt <= cnt + 1;
+                disp_onoff:
+                    if (cnt == 30) begin state <= entry_mode; cnt <= 0; end 
+                    else cnt <= cnt + 1;
+                entry_mode:
+                    if (cnt == 30) begin state <= line1; cnt <= 0; end 
+                    else cnt <= cnt + 1;
+                line1:
+                    if (cnt == 20) begin state <= line2; cnt <= 0; end 
+                    else cnt <= cnt + 1;
+                line2:
+                    if (cnt == 20) begin state <= delay_t; cnt <= 0; end 
+                    else cnt <= cnt + 1;
+                delay_t:
+                    if (cnt == 400) begin state <= clear_disp; cnt <= 0; end 
+                    else cnt <= cnt + 1;
+                clear_disp:
+                    if (cnt == 200) begin state <= line1; cnt <= 0; end 
+                    else cnt <= cnt + 1;
+                default: 
+                    begin state <= delay; cnt <= 0; end
+            endcase
+        end
+    end
+
+    // LCD 제어 로직
+    always @(posedge rst or posedge clk_100hz) begin
+        if (rst) begin
+            lcd_rs <= 1'b1;
+            lcd_rw <= 1'b1;
+            lcd_data <= 8'b00000000;
+        end else begin
+            case (state)
+                function_set: begin
+                    lcd_rs <= 1'b0;
+                    lcd_rw <= 1'b0;
+                    lcd_data <= 8'b00111100;
+                end
+                disp_onoff: begin
+                    lcd_rs <= 1'b0;
+                    lcd_rw <= 1'b0;
+                    lcd_data <= 8'b00001100;
+                end
+                entry_mode: begin
+                    lcd_rs <= 1'b0;
+                    lcd_rw <= 1'b0;
+                    lcd_data <= 8'b00000110;
+                end
+                line1: begin
+                    lcd_rw <= 1'b0;
+                    case (cnt)
+                        0:  begin lcd_rs <= 1'b0; lcd_data <= 8'b10000000; end
+                        1:  begin lcd_rs <= 1'b1; lcd_data <= 8'b01001000; end // H
+                        2:  begin lcd_rs <= 1'b1; lcd_data <= 8'b01100101; end // E
+                        3:  begin lcd_rs <= 1'b1; lcd_data <= 8'b01101100; end // L
+                        4:  begin lcd_rs <= 1'b1; lcd_data <= 8'b01101100; end // L
+                        5:  begin lcd_rs <= 1'b1; lcd_data <= 8'b01101111; end // O
+                        default: begin lcd_rs <= 1'b1; lcd_data <= 8'b00100000; end
+                    endcase
+                end
+                line2: begin
+                    lcd_rw <= 1'b0;
+                    case (cnt)
+                        0:  begin lcd_rs <= 1'b0; lcd_data <= 8'b11000000; end
+                        1:  begin lcd_rs <= 1'b1; lcd_data <= 8'b01010111; end // W
+                        2:  begin lcd_rs <= 1'b1; lcd_data <= 8'b01101111; end // O
+                        3:  begin lcd_rs <= 1'b1; lcd_data <= 8'b01110010; end // R
+                        4:  begin lcd_rs <= 1'b1; lcd_data <= 8'b01101100; end // L
+                        5:  begin lcd_rs <= 1'b1; lcd_data <= 8'b01100100; end // D
+                        default: begin lcd_rs <= 1'b1; lcd_data <= 8'b00100000; end
+                    endcase
+                end
+                delay_t: begin
+                    lcd_rs <= 1'b0;
+                    lcd_rw <= 1'b0;
+                    lcd_data <= 8'b00000010;
+                end
+                clear_disp: begin
+                    lcd_rs <= 1'b0;
+                    lcd_rw <= 1'b0;
+                    lcd_data <= 8'b00000001;
+                end
+                default: begin
+                    lcd_rs <= 1'b1;
+                    lcd_rw <= 1'b1;
+                    lcd_data <= 8'b00000000;
+                end
+            endcase
+        end
+    end
+
+    assign lcd_e = clk_100hz;
 
 endmodule
