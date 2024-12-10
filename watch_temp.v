@@ -118,39 +118,32 @@ always @(posedge clk or posedge rst) begin
 end
 
 // -----------------------------
-// 세그먼트 디코딩
-// -----------------------------
-seg_decode u0 (h_ten, seg_h_ten);
-seg_decode u1 (h_one, seg_h_one);
-seg_decode u2 (m_ten, seg_m_ten);
-seg_decode u3 (m_one, seg_m_one);
-seg_decode u4 (s_ten, seg_s_ten);
-seg_decode u5 (s_one, seg_s_one);
-
-// -----------------------------
 // 세그먼트 표시
 // -----------------------------
-reg [2:0] s_cnt;
-
-always @(posedge clk or posedge rst) begin
-    if (rst) s_cnt <= 0;
-    else s_cnt <= s_cnt + 1;
-end
-
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         seg_com <= 8'b1111_1111;
         seg_data <= 8'b0000_0000;
     end else begin
-        case(s_cnt)
-            3'd0: begin seg_com <= 8'b0111_1111; seg_data <= seg_h_ten; end
-            3'd1: begin seg_com <= 8'b1011_1111; seg_data <= seg_h_one; end
-            3'd2: begin seg_com <= 8'b1101_1111; seg_data <= seg_m_ten; end
-            3'd3: begin seg_com <= 8'b1110_1111; seg_data <= seg_m_one; end
-            3'd4: begin seg_com <= 8'b1111_0111; seg_data <= seg_s_ten; end
-            3'd5: begin seg_com <= 8'b1111_1011; seg_data <= seg_s_one; end
-            default: begin seg_com <= 8'b1111_1111; seg_data <= 8'b0000_0000; end
-        endcase
+        if (dip_sw) begin
+            case (input_cnt)
+                0: begin seg_com <= 8'b0111_1111; seg_data <= seg_h_ten; end
+                1: begin seg_com <= 8'b1011_1111; seg_data <= seg_h_one; end
+                2: begin seg_com <= 8'b1101_1111; seg_data <= seg_m_ten; end
+                3: begin seg_com <= 8'b1110_1111; seg_data <= seg_m_one; end
+                4: begin seg_com <= 8'b1111_0111; seg_data <= seg_s_ten; end
+                5: begin seg_com <= 8'b1111_1011; seg_data <= seg_s_one; end
+            endcase
+        end else begin
+            case (s_cnt)
+                3'd0: begin seg_com <= 8'b0111_1111; seg_data <= seg_h_ten; end
+                3'd1: begin seg_com <= 8'b1011_1111; seg_data <= seg_h_one; end
+                3'd2: begin seg_com <= 8'b1101_1111; seg_data <= seg_m_ten; end
+                3'd3: begin seg_com <= 8'b1110_1111; seg_data <= seg_m_one; end
+                3'd4: begin seg_com <= 8'b1111_0111; seg_data <= seg_s_ten; end
+                3'd5: begin seg_com <= 8'b1111_1011; seg_data <= seg_s_one; end
+            endcase
+        end
     end
 end
 
