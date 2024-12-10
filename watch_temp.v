@@ -81,6 +81,52 @@ always @(posedge clk or posedge rst) begin
 end
 
 // -----------------------------
+// 시계 카운터 모드
+// -----------------------------
+always @(posedge clk or posedge rst) begin
+    if (rst) begin
+        h_cnt <= 0;
+        input_done <= 0;
+    end else if (!dip_sw && input_done) begin
+        if (h_cnt >= 999) begin
+            h_cnt <= 0;
+            if (s_one == 9) begin
+                s_one <= 0;
+                if (s_ten == 5) begin
+                    s_ten <= 0;
+                    if (m_one == 9) begin
+                        m_one <= 0;
+                        if (m_ten == 5) begin
+                            m_ten <= 0;
+                            if (h_ten == 2 && h_one == 3) begin
+                                h_ten <= 0;
+                                h_one <= 0;
+                            end else if (h_one == 9) begin
+                                h_one <= 0;
+                                h_ten <= h_ten + 1;
+                            end else begin
+                                h_one <= h_one + 1;
+                            end
+                        end else begin
+                            m_ten <= m_ten + 1;
+                        end
+                    end else begin
+                        m_one <= m_one + 1;
+                    end
+                end else begin
+                    s_ten <= s_ten + 1;
+                end
+            end else begin
+                s_one <= s_one + 1;
+            end
+            input_done <= 0; // 입력 완료 플래그 초기화
+        end else begin
+            h_cnt <= h_cnt + 1;
+        end
+    end
+end
+
+// -----------------------------
 // 세그먼트 디코딩
 // -----------------------------
 seg_decode u0 (h_ten, seg_h_ten);
@@ -91,16 +137,13 @@ seg_decode u4 (s_ten, seg_s_ten);
 seg_decode u5 (s_one, seg_s_one);
 
 // -----------------------------
-// 세그먼트 표시 (입력과 무관하게 각 자리 표시)
+// 세그먼트 표시
 // -----------------------------
 reg [2:0] s_cnt;
 
 always @(posedge clk or posedge rst) begin
-    if (rst) begin
-        s_cnt <= 0;
-    end else begin
-        s_cnt <= s_cnt + 1;
-    end
+    if (rst) s_cnt <= 0;
+    else s_cnt <= s_cnt + 1;
 end
 
 always @(posedge clk or posedge rst) begin
@@ -108,7 +151,7 @@ always @(posedge clk or posedge rst) begin
         seg_com <= 8'b1111_1111;
         seg_data <= 8'b0000_0000;
     end else begin
-        case (s_cnt)
+        case(s_cnt)
             3'd0: begin seg_com <= 8'b0111_1111; seg_data <= seg_h_ten; end
             3'd1: begin seg_com <= 8'b1011_1111; seg_data <= seg_h_one; end
             3'd2: begin seg_com <= 8'b1101_1111; seg_data <= seg_m_ten; end
