@@ -52,16 +52,18 @@ always @(posedge clk or posedge rst) begin
 end
 
 // -----------------------------
-// 시간 설정 모드
+// 시계 카운터 및 시간 설정 통합
 // -----------------------------
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         input_cnt <= 0;
         input_done <= 0;
+        h_cnt <= 0;
         h_ten <= 0; h_one <= 0;
         m_ten <= 0; m_one <= 0;
         s_ten <= 0; s_one <= 0;
     end else if (dip_sw) begin
+        // 시간 설정 모드
         if (keypad != 10'b0000000000 && keypad_prev == 10'b0000000000) begin
             case (input_cnt)
                 0: h_ten <= current_digit;
@@ -77,22 +79,12 @@ always @(posedge clk or posedge rst) begin
             if (input_cnt < 5) begin
                 input_cnt <= input_cnt + 1;
             end else begin
-                input_cnt <= 0;     // 입력 완료 후 초기화
+                input_cnt <= 0; // 입력 완료 후 초기화
             end
         end
-    end else begin
-        input_done <= 0; // 시계 모드로 전환 시 플래그 리셋
-    end
-end
-
-// -----------------------------
-// 시계 카운터 모드
-// -----------------------------
-always @(posedge clk or posedge rst) begin
-    if (rst) begin
-        h_cnt <= 0;
-    end else if (!dip_sw) begin
-        if (h_cnt >= 999_999) begin // 1Hz 카운트 (assuming clk is 1MHz)
+    end else if (input_done) begin
+        // 시계 카운터 모드
+        if (h_cnt >= 999) begin
             h_cnt <= 0;
             if (s_one == 9) begin
                 s_one <= 0;
@@ -128,6 +120,7 @@ always @(posedge clk or posedge rst) begin
         end
     end
 end
+
 
 // -----------------------------
 // 세그먼트 디코딩
