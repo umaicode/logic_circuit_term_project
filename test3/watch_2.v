@@ -22,15 +22,21 @@ reg setting_mode;          // 설정 모드 활성화 플래그
 reg [9:0] h_cnt;           // 1초 카운터
 
 // -----------------------------
-// 키패드 입력 처리 (설정 모드)
+// 세팅 모드 및 시계 카운터 통합
 // -----------------------------
 always @(posedge clk or posedge rst) begin
     if (rst) begin
+        // 초기화
         input_cnt <= 0;
         setting_mode <= 1;
+        h_cnt <= 0;
+        h_ten <= 0; h_one <= 0;
+        m_ten <= 0; m_one <= 0;
+        s_ten <= 0; s_one <= 0;
     end else if (setting_mode) begin
-        if (keypad != 10'b1111111111) begin  // 키패드 입력이 있을 경우
-            current_digit <= keypad[9:0];    // 하위 4비트만 사용
+        // 세팅 모드: 키패드 입력 처리
+        if (keypad != 10'b1111111111) begin
+            current_digit <= keypad[3:0];    // 하위 4비트만 사용
             case (input_cnt)
                 0: h_ten <= current_digit;
                 1: h_one <= current_digit;
@@ -44,66 +50,41 @@ always @(posedge clk or posedge rst) begin
             endcase
             input_cnt <= input_cnt + 1;
         end
-    end
-end
-
-// -----------------------------
-// 시계 동작 카운터 (1초 단위)
-// -----------------------------
-always @(posedge clk or posedge rst) begin
-    if (rst) h_cnt <= 0;
-    else if (!setting_mode) begin
-        if (h_cnt >= 999) h_cnt <= 0;
-        else h_cnt <= h_cnt + 1;
-    end
-end
-
-always @(posedge clk or posedge rst) begin
-    if (rst) s_one <= 0;
-    else if (!setting_mode && h_cnt == 999) begin
-        if (s_one >= 9) s_one <= 0;
-        else s_one <= s_one + 1;
-    end
-end
-
-always @(posedge clk or posedge rst) begin
-    if (rst) s_ten <= 0;
-    else if (!setting_mode && h_cnt == 999 && s_one == 9) begin
-        if (s_ten >= 5) s_ten <= 0;
-        else s_ten <= s_ten + 1;
-    end
-end
-
-always @(posedge clk or posedge rst) begin
-    if (rst) m_one <= 0;
-    else if (!setting_mode && h_cnt == 999 && s_one == 9 && s_ten == 5) begin
-        if (m_one >= 9) m_one <= 0;
-        else m_one <= m_one + 1;
-    end
-end
-
-always @(posedge clk or posedge rst) begin
-    if (rst) m_ten <= 0;
-    else if (!setting_mode && h_cnt == 999 && s_one == 9 && s_ten == 5 && m_one == 9) begin
-        if (m_ten >= 5) m_ten <= 0;
-        else m_ten <= m_ten + 1;
-    end
-end
-
-always @(posedge clk or posedge rst) begin
-    if (rst) begin
-        h_ten <= 0;
-        h_one <= 0;
-    end else if (!setting_mode && h_cnt == 999 && s_one == 9 && s_ten == 5 && m_one == 9 && m_ten == 5) begin
-        if (h_ten == 2 && h_one == 3) begin
-            // "23:59:59 → 00:00:00" 처리
-            h_ten <= 0;
-            h_one <= 0;
-        end else if (h_one >= 9) begin
-            h_one <= 0;
-            h_ten <= h_ten + 1;
+    end else begin
+        // 시계 카운터 모드
+        if (h_cnt >= 999) begin
+            h_cnt <= 0;
+            if (s_one == 9) begin
+                s_one <= 0;
+                if (s_ten == 5) begin
+                    s_ten <= 0;
+                    if (m_one == 9) begin
+                        m_one <= 0;
+                        if (m_ten == 5) begin
+                            m_ten <= 0;
+                            if (h_ten == 2 && h_one == 3) begin
+                                h_ten <= 0;
+                                h_one <= 0;
+                            end else if (h_one == 9) begin
+                                h_one <= 0;
+                                h_ten <= h_ten + 1;
+                            end else begin
+                                h_one <= h_one + 1;
+                            end
+                        end else begin
+                            m_ten <= m_ten + 1;
+                        end
+                    end else begin
+                        m_one <= m_one + 1;
+                    end
+                end else begin
+                    s_ten <= s_ten + 1;
+                end
+            end else begin
+                s_one <= s_one + 1;
+            end
         end else begin
-            h_one <= h_one + 1;
+            h_cnt <= h_cnt + 1;
         end
     end
 end
