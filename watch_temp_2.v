@@ -19,7 +19,7 @@ wire [7:0] seg_s_ten, seg_s_one;
 // 입력 관련 상태
 reg [2:0] input_cnt;       // 0부터 5까지의 입력 카운터
 reg [3:0] current_digit;   // 현재 입력된 키패드 숫자
-reg [9:0] h_cnt;           // 1초 카운터
+reg [19:0] h_cnt;          // 1초 카운터 (20비트로 확장)
 reg input_done;            // 입력 완료 플래그
 
 // -----------------------------
@@ -80,9 +80,19 @@ always @(posedge clk or posedge rst) begin
                 input_cnt <= 0;     // 입력 완료 후 초기화
             end
         end
-    end else if (input_done) begin
-        // 시계 카운터 모드
-        if (h_cnt >= 999) begin
+    end else begin
+        input_done <= 0; // 시계 모드로 전환 시 플래그 리셋
+    end
+end
+
+// -----------------------------
+// 시계 카운터 모드
+// -----------------------------
+always @(posedge clk or posedge rst) begin
+    if (rst) begin
+        h_cnt <= 0;
+    end else if (!dip_sw) begin
+        if (h_cnt >= 999_999) begin // 1Hz 카운트 (assuming clk is 1MHz)
             h_cnt <= 0;
             if (s_one == 9) begin
                 s_one <= 0;
