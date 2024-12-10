@@ -52,7 +52,7 @@ always @(posedge clk or posedge rst) begin
 end
 
 // -----------------------------
-// 시계 카운터 및 시간 설정 통합
+// 시간 설정 모드 및 시계 카운터 통합
 // -----------------------------
 always @(posedge clk or posedge rst) begin
     if (rst) begin
@@ -66,21 +66,13 @@ always @(posedge clk or posedge rst) begin
         // 시간 설정 모드
         if (keypad != 10'b0000000000 && keypad_prev == 10'b0000000000) begin
             case (input_cnt)
-                0: h_ten <= current_digit;
-                1: h_one <= current_digit;
-                2: m_ten <= current_digit;
-                3: m_one <= current_digit;
-                4: s_ten <= current_digit;
-                5: begin
-                    s_one <= current_digit;
-                    input_done <= 1; // 설정 완료
-                end
+                0: begin h_ten <= current_digit; input_cnt <= input_cnt + 1; end
+                1: begin h_one <= current_digit; input_cnt <= input_cnt + 1; end
+                2: begin m_ten <= current_digit; input_cnt <= input_cnt + 1; end
+                3: begin m_one <= current_digit; input_cnt <= input_cnt + 1; end
+                4: begin s_ten <= current_digit; input_cnt <= input_cnt + 1; end
+                5: begin s_one <= current_digit; input_done <= 1; input_cnt <= 0; end
             endcase
-            if (input_cnt < 5) begin
-                input_cnt <= input_cnt + 1;
-            end else begin
-                input_cnt <= 0; // 입력 완료 후 초기화
-            end
         end
     end else if (input_done) begin
         // 시계 카운터 모드
@@ -120,6 +112,7 @@ always @(posedge clk or posedge rst) begin
         end
     end
 end
+
 
 
 // -----------------------------
