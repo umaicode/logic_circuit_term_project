@@ -1,7 +1,8 @@
-module watch(clk, rst, keypad, seg_data, seg_com);
+module watch(clk, rst, dip_sw, keypad, seg_data, seg_com);
 
 input clk;            // 1kHz clock
 input rst;            // 리셋 신호
+input dip_sw;         // DIP 스위치 입력 (1: 설정 모드, 0: 시계 모드)
 input [9:0] keypad;   // 키패드 입력 (0~9)
 
 output reg [7:0] seg_data;
@@ -18,7 +19,6 @@ wire [7:0] seg_s_ten, seg_s_one;
 // 입력 관련 상태
 reg [2:0] input_cnt;       // 0부터 5까지의 입력 카운터
 reg [3:0] current_digit;   // 현재 입력된 키패드 숫자
-reg setting_mode;          // 설정 모드 활성화 플래그
 reg [9:0] h_cnt;           // 1초 카운터
 
 // -----------------------------
@@ -28,12 +28,11 @@ always @(posedge clk or posedge rst) begin
     if (rst) begin
         // 초기화
         input_cnt <= 0;
-        setting_mode <= 1;
         h_cnt <= 0;
         h_ten <= 0; h_one <= 0;
         m_ten <= 0; m_one <= 0;
         s_ten <= 0; s_one <= 0;
-    end else if (setting_mode) begin
+    end else if (dip_sw) begin
         // 세팅 모드: 키패드 입력 처리
         if (keypad != 10'b1111111111) begin
             current_digit <= keypad[3:0];    // 하위 4비트만 사용
@@ -45,7 +44,7 @@ always @(posedge clk or posedge rst) begin
                 4: s_ten <= current_digit;
                 5: begin
                     s_one <= current_digit;
-                    setting_mode <= 0;       // 6자리 입력 후 설정 모드 종료
+                    input_cnt <= 0;           // 입력 완료 후 카운터 초기화
                 end
             endcase
             input_cnt <= input_cnt + 1;
