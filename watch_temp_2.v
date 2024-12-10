@@ -74,8 +74,11 @@ always @(posedge clk or posedge rst) begin
                     input_done <= 1; // 설정 완료
                 end
             endcase
-            if (input_cnt < 5)
+            if (input_cnt < 5) begin
                 input_cnt <= input_cnt + 1;
+            end else begin
+                input_cnt <= 0;     // 입력 완료 후 초기화
+            end
         end
     end else if (input_done) begin
         // 시계 카운터 모드
@@ -115,7 +118,6 @@ always @(posedge clk or posedge rst) begin
         end
     end
 end
-
 
 // -----------------------------
 // 세그먼트 디코딩
