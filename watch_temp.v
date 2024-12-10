@@ -57,12 +57,13 @@ end
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         input_cnt <= 0;
+        h_cnt <= 0;
         input_done <= 0;
         h_ten <= 0; h_one <= 0;
         m_ten <= 0; m_one <= 0;
         s_ten <= 0; s_one <= 0;
     end else if (dip_sw) begin
-        if (keypad != 10'b0000000000 && keypad_prev == 10'b0000000000) begin
+        if (keypad != 10'b0000000000) begin
             case (input_cnt)
                 0: h_ten <= current_digit;
                 1: h_one <= current_digit;
@@ -74,20 +75,11 @@ always @(posedge clk or posedge rst) begin
                     input_done <= 1; // 설정 완료
                 end
             endcase
-            if (input_cnt < 5)
-                input_cnt <= input_cnt + 1;
+            input_cnt <= input_cnt + 1;
+            if (input_cnt == 5) input_cnt <= 0;
         end
-    end
-end
-
-// -----------------------------
-// 시계 카운터 모드
-// -----------------------------
-always @(posedge clk or posedge rst) begin
-    if (rst) begin
-        h_cnt <= 0;
-        input_done <= 0;
-    end else if (!dip_sw && input_done) begin
+    end else if (input_done) begin
+        // 시계 카운터 모드
         if (h_cnt >= 999) begin
             h_cnt <= 0;
             if (s_one == 9) begin
@@ -119,7 +111,6 @@ always @(posedge clk or posedge rst) begin
             end else begin
                 s_one <= s_one + 1;
             end
-            input_done <= 0; // 입력 완료 플래그 초기화
         end else begin
             h_cnt <= h_cnt + 1;
         end
