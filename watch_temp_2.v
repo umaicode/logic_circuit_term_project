@@ -18,66 +18,48 @@ wire [7:0] seg_s_ten, seg_s_one;
 
 // 입력 관련 상태
 reg [2:0] input_cnt;       // 0부터 5까지의 입력 카운터
-reg [3:0] current_digit;   // 현재 입력된 키패드 숫자
-reg [19:0] h_cnt;          // 1초 카운터 (20비트로 확장)
+reg [9:0] h_cnt;           // 1초 카운터
 reg input_done;            // 입력 완료 플래그
 
-// -----------------------------
-// 키패드 입력 디코딩 (디바운싱)
-// -----------------------------
+// 키패드 입력 디코딩 및 시간 설정
 reg [9:0] keypad_prev;
 
 // -----------------------------
-// 키패드 입력 및 시간 설정 모드 통합
+// 키패드 입력 및 시간 설정, 시계 카운터 통합
 // -----------------------------
 always @(posedge clk or posedge rst) begin
     if (rst) begin
-        current_digit <= 4'd0;
-        keypad_prev <= 10'b0000000000;
         input_cnt <= 0;
         input_done <= 0;
         h_cnt <= 0;
         h_ten <= 0; h_one <= 0;
         m_ten <= 0; m_one <= 0;
         s_ten <= 0; s_one <= 0;
+        keypad_prev <= 10'b0000000000;
     end else begin
         keypad_prev <= keypad;
 
         if (dip_sw) begin
             // 시간 설정 모드
             if (keypad != 10'b0000000000 && keypad_prev == 10'b0000000000) begin
-                case (keypad)
-                    10'b0000000001: current_digit <= 4'd0;
-                    10'b0000000010: current_digit <= 4'd1;
-                    10'b0000000100: current_digit <= 4'd2;
-                    10'b0000001000: current_digit <= 4'd3;
-                    10'b0000010000: current_digit <= 4'd4;
-                    10'b0000100000: current_digit <= 4'd5;
-                    10'b0001000000: current_digit <= 4'd6;
-                    10'b0010000000: current_digit <= 4'd7;
-                    10'b0100000000: current_digit <= 4'd8;
-                    10'b1000000000: current_digit <= 4'd9;
-                    default: current_digit <= 4'd0;
-                endcase
-
-                // 입력된 current_digit를 즉시 반영
+                // 키패드 입력 즉시 반영
                 case (input_cnt)
-                    0: h_ten <= current_digit;
-                    1: h_one <= current_digit;
-                    2: m_ten <= current_digit;
-                    3: m_one <= current_digit;
-                    4: s_ten <= current_digit;
-                    5: begin
-                        s_one <= current_digit;
-                        input_done <= 1;  // 설정 완료
+                    0: h_ten <= keypad_to_digit(keypad);
+                    1: h_one <= keypad_to_digit(keypad);
+                    2: m_ten <= keypad_to_digit(keypad);
+                    3: m_one <= keypad_to_digit(keypad);
+                    4: s_ten <= keypad_to_digit(keypad);
+                    5: begin 
+                        s_one <= keypad_to_digit(keypad); 
+                        input_done <= 1; // 설정 완료
                     end
                 endcase
 
-                // 입력이 반영된 후 input_cnt 증가
+                // 입력 카운터 증가
                 if (input_cnt < 5) begin
                     input_cnt <= input_cnt + 1;
                 end else begin
-                    input_cnt <= 0;  // 입력 완료 후 초기화
+                    input_cnt <= 0; // 입력 완료 후 초기화
                 end
             end
         end else if (input_done) begin
@@ -120,8 +102,23 @@ always @(posedge clk or posedge rst) begin
     end
 end
 
-
-
+// 키패드 입력을 숫자로 변환하는 함수
+function [3:0] keypad_to_digit;
+    input [9:0] keypad;
+    case (keypad)
+        10'b0000000001: keypad_to_digit = 4'd0;
+        10'b0000000010: keypad_to_digit = 4'd1;
+        10'b0000000100: keypad_to_digit = 4'd2;
+        10'b0000001000: keypad_to_digit = 4'd3;
+        10'b0000010000: keypad_to_digit = 4'd4;
+        10'b0000100000: keypad_to_digit = 4'd5;
+        10'b0001000000: keypad_to_digit = 4'd6;
+        10'b0010000000: keypad_to_digit = 4'd7;
+        10'b0100000000: keypad_to_digit = 4'd8;
+        10'b1000000000: keypad_to_digit = 4'd9;
+        default: keypad_to_digit = 4'd0;
+    endcase
+endfunction
 
 // -----------------------------
 // 세그먼트 디코딩
@@ -134,16 +131,13 @@ seg_decode u4 (s_ten, seg_s_ten);
 seg_decode u5 (s_one, seg_s_one);
 
 // -----------------------------
-// 세그먼트 표시 (입력과 무관하게 각 자리 표시)
+// 세그먼트 표시
 // -----------------------------
 reg [2:0] s_cnt;
 
 always @(posedge clk or posedge rst) begin
-    if (rst) begin
-        s_cnt <= 0;
-    end else begin
-        s_cnt <= s_cnt + 1;
-    end
+    if (rst) s_cnt <= 0;
+    else s_cnt <= s_cnt + 1;
 end
 
 always @(posedge clk or posedge rst) begin
@@ -151,7 +145,7 @@ always @(posedge clk or posedge rst) begin
         seg_com <= 8'b1111_1111;
         seg_data <= 8'b0000_0000;
     end else begin
-        case (s_cnt)
+        case(s_cnt)
             3'd0: begin seg_com <= 8'b0111_1111; seg_data <= seg_h_ten; end
             3'd1: begin seg_com <= 8'b1011_1111; seg_data <= seg_h_one; end
             3'd2: begin seg_com <= 8'b1101_1111; seg_data <= seg_m_ten; end
