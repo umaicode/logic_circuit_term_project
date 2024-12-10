@@ -20,7 +20,7 @@ reg [2:0] input_cnt;       // 0부터 5까지의 입력 카운터
 reg [9:0] current_digit;   // 현재 입력된 키패드 숫자
 reg setting_mode;          // 설정 모드 활성화 플래그
 reg [9:0] h_cnt;           // 1초 카운터
-xw
+
 // 키패드 입력 처리
 always @(posedge clk or posedge rst) begin
     if (rst) begin
