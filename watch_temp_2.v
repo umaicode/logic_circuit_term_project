@@ -66,13 +66,20 @@ always @(posedge clk or posedge rst) begin
         // 시간 설정 모드
         if (keypad != 10'b0000000000 && keypad_prev == 10'b0000000000) begin
             case (input_cnt)
-                0: begin h_ten <= current_digit; input_cnt <= input_cnt + 1; end
-                1: begin h_one <= current_digit; input_cnt <= input_cnt + 1; end
-                2: begin m_ten <= current_digit; input_cnt <= input_cnt + 1; end
-                3: begin m_one <= current_digit; input_cnt <= input_cnt + 1; end
-                4: begin s_ten <= current_digit; input_cnt <= input_cnt + 1; end
-                5: begin s_one <= current_digit; input_done <= 1; input_cnt <= 0; end
+                0: h_ten <= current_digit;
+                1: h_one <= current_digit;
+                2: m_ten <= current_digit;
+                3: m_one <= current_digit;
+                4: s_ten <= current_digit;
+                5: s_one <= current_digit;
             endcase
+            // 입력이 반영된 후 input_cnt를 증가
+            if (input_cnt < 5) begin
+                input_cnt <= input_cnt + 1;
+            end else begin
+                input_done <= 1;  // 모든 입력이 완료되면 플래그 설정
+                input_cnt <= 0;   // 입력 카운터 초기화
+            end
         end
     end else if (input_done) begin
         // 시계 카운터 모드
