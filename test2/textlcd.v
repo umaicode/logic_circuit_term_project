@@ -12,6 +12,8 @@ module textlcd(
         .clk_out(clk_100hz)
     );
 
+    reg [9:0] cnt;
+    
     reg [2:0] state;
     parameter delay = 3'b000, function_set = 3'b001, entry_mode = 3'b010,
               disp_onoff = 3'b011, line1 = 3'b100, line2 = 3'b101,
