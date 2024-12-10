@@ -118,6 +118,23 @@ always @(posedge clk or posedge rst) begin
 end
 
 // -----------------------------
+// 세그먼트 선택 카운터 선언
+// -----------------------------
+reg [2:0] s_cnt;     // 0부터 5까지의 세그먼트 선택 카운터
+
+// -----------------------------
+// 세그먼트 선택 카운터 로직
+// -----------------------------
+always @(posedge clk or posedge rst) begin
+    if (rst) begin
+        s_cnt <= 0;
+    end else begin
+        s_cnt <= s_cnt + 1;
+        if (s_cnt == 3'd5) s_cnt <= 0; // 0~5까지만 반복
+    end
+end
+
+// -----------------------------
 // 세그먼트 표시
 // -----------------------------
 always @(posedge clk or posedge rst) begin
