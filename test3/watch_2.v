@@ -18,105 +18,111 @@ wire [7:0] seg_s_ten, seg_s_one;
 
 // 입력 관련 상태
 reg [2:0] input_cnt;       // 0부터 5까지의 입력 카운터
-reg [3:0] current_digit;   // 현재 입력된 키패드 숫자
 reg [9:0] h_cnt;           // 1초 카운터
 reg input_done;            // 입력 완료 플래그
 
-// -----------------------------
-// 키패드 입력 디코딩 (디바운싱)
-// -----------------------------
+// 키패드 입력 디코딩 및 시간 설정
 reg [9:0] keypad_prev;
 
-always @(posedge clk or posedge rst) begin
-    if (rst) begin
-        current_digit <= 4'd0;
-        keypad_prev <= 10'b0000000000;
-    end else begin
-        keypad_prev <= keypad;
-        if (keypad != 10'b0000000000 && keypad_prev == 10'b0000000000) begin
-            case (keypad)
-                10'b0000000001: current_digit <= 4'd0;
-                10'b0000000010: current_digit <= 4'd1;
-                10'b0000000100: current_digit <= 4'd2;
-                10'b0000001000: current_digit <= 4'd3;
-                10'b0000010000: current_digit <= 4'd4;
-                10'b0000100000: current_digit <= 4'd5;
-                10'b0001000000: current_digit <= 4'd6;
-                10'b0010000000: current_digit <= 4'd9;
-                10'b0100000000: current_digit <= 4'd7;
-                10'b1000000000: current_digit <= 4'd8;
-                default: current_digit <= 4'd0;
-            endcase
-        end
-    end
-end
+// ------------------------------ 알람 연결 --------------------------------------
+
+//--------------------------- 얼람 연결 done ---------------------------------
 
 // -----------------------------
-// 세팅 모드 및 시계 카운터 통합
+// 키패드 입력 및 시간 설정, 시계 카운터 통합
 // -----------------------------
 always @(posedge clk or posedge rst) begin
     if (rst) begin
         input_cnt <= 0;
-        h_cnt <= 0;
         input_done <= 0;
+        h_cnt <= 0;
         h_ten <= 0; h_one <= 0;
         m_ten <= 0; m_one <= 0;
         s_ten <= 0; s_one <= 0;
-    end else if (dip_sw) begin
-        // 시간 설정 모드
-        if (keypad != 10'b0000000000) begin
-            case (input_cnt)
-                0: h_ten <= current_digit;
-                1: h_one <= current_digit;
-                2: m_ten <= current_digit;
-                3: m_one <= current_digit;
-                4: s_ten <= current_digit;
-                5: begin
-                    s_one <= current_digit;
-                    input_done <= 1; // 설정 완료
+        keypad_prev <= 10'b0000000000;
+    end else begin
+        keypad_prev <= keypad;
+
+        if (dip_sw) begin
+            // 시간 설정 모드
+            if (keypad != 10'b0000000000 && keypad_prev == 10'b0000000000) begin
+                // 키패드 입력 즉시 반영
+                case (input_cnt)
+                    0: h_ten <= keypad_to_digit(keypad);
+                    1: h_one <= keypad_to_digit(keypad);
+                    2: m_ten <= keypad_to_digit(keypad);
+                    3: m_one <= keypad_to_digit(keypad);
+                    4: s_ten <= keypad_to_digit(keypad);
+                    5: begin 
+                        s_one <= keypad_to_digit(keypad); 
+                        input_done <= 1; // 설정 완료
+                    end
+                endcase
+
+                // 입력 카운터 증가
+                if (input_cnt < 5) begin
+                    input_cnt <= input_cnt + 1;
+                end else begin
+                    input_cnt <= 0; // 입력 완료 후 초기화
                 end
-            endcase
-            input_cnt <= input_cnt + 1;
-            if (input_cnt == 5) input_cnt <= 0; // 6자리 입력 후 초기화
-        end
-    end else if (input_done) begin
-        // 시계 카운터 모드
-        if (h_cnt >= 999) begin
-            h_cnt <= 0;
-            if (s_one == 9) begin
-                s_one <= 0;
-                if (s_ten == 5) begin
-                    s_ten <= 0;
-                    if (m_one == 9) begin
-                        m_one <= 0;
-                        if (m_ten == 5) begin
-                            m_ten <= 0;
-                            if (h_ten == 2 && h_one == 3) begin
-                                h_ten <= 0;
-                                h_one <= 0;
-                            end else if (h_one == 9) begin
-                                h_one <= 0;
-                                h_ten <= h_ten + 1;
+            end
+        end else if (input_done) begin
+            // 시계 카운터 모드
+            if (h_cnt >= 999) begin
+                h_cnt <= 0;
+                if (s_one == 9) begin
+                    s_one <= 0;
+                    if (s_ten == 5) begin
+                        s_ten <= 0;
+                        if (m_one == 9) begin
+                            m_one <= 0;
+                            if (m_ten == 5) begin
+                                m_ten <= 0;
+                                if (h_ten == 2 && h_one == 3) begin
+                                    h_ten <= 0;
+                                    h_one <= 0;
+                                end else if (h_one == 9) begin
+                                    h_one <= 0;
+                                    h_ten <= h_ten + 1;
+                                end else begin
+                                    h_one <= h_one + 1;
+                                end
                             end else begin
-                                h_one <= h_one + 1;
+                                m_ten <= m_ten + 1;
                             end
                         end else begin
-                            m_ten <= m_ten + 1;
+                            m_one <= m_one + 1;
                         end
                     end else begin
-                        m_one <= m_one + 1;
+                        s_ten <= s_ten + 1;
                     end
                 end else begin
-                    s_ten <= s_ten + 1;
+                    s_one <= s_one + 1;
                 end
             end else begin
-                s_one <= s_one + 1;
+                h_cnt <= h_cnt + 1;
             end
-        end else begin
-            h_cnt <= h_cnt + 1;
         end
     end
 end
+
+// 키패드 입력을 숫자로 변환하는 함수
+function [3:0] keypad_to_digit;
+    input [9:0] keypad;
+    case (keypad)
+        10'b0000000001: keypad_to_digit = 4'd0;
+        10'b0000000010: keypad_to_digit = 4'd1;
+        10'b0000000100: keypad_to_digit = 4'd2;
+        10'b0000001000: keypad_to_digit = 4'd3;
+        10'b0000010000: keypad_to_digit = 4'd4;
+        10'b0000100000: keypad_to_digit = 4'd5;
+        10'b0001000000: keypad_to_digit = 4'd6;
+        10'b0010000000: keypad_to_digit = 4'd7;
+        10'b0100000000: keypad_to_digit = 4'd8;
+        10'b1000000000: keypad_to_digit = 4'd9;
+        default: keypad_to_digit = 4'd0;
+    endcase
+endfunction
 
 // -----------------------------
 // 세그먼트 디코딩
@@ -131,7 +137,7 @@ seg_decode u5 (s_one, seg_s_one);
 // -----------------------------
 // 세그먼트 표시
 // -----------------------------
-reg [2:0] s_cnt; // 세그먼트 선택 카운터
+reg [2:0] s_cnt;
 
 always @(posedge clk or posedge rst) begin
     if (rst) s_cnt <= 0;
