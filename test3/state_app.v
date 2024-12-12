@@ -3,6 +3,8 @@ module state_app(
     input clk,         // 1kHz 입력 클럭
     input mode,        // 상태 전환 신호
     input start,       // 스톱워치 시작 신호
+    input dip_sw,      // DIP 스위치 입력 (1: 설정 모드, 0: 시계 모드)
+    input alarm_set_mode, // 알람 설정 모드
     input [9:0] keypad, // 키패드 입력
     output [7:0] seg_data, seg_com,       // 7-세그먼트 디스플레이 데이터 및 공통 신호
     output lcd_e, lcd_rs, lcd_rw,        // LCD 제어 신호
@@ -50,6 +52,7 @@ module state_app(
         .clk(clk),       // 시계는 1kHz 클럭 사용
         .rst(rst),       // 리셋 신호
         .keypad(keypad), // 키패드 입력
+        .dip_sw(dip_sw), // DIP 스위치 입력
         .seg_data(watch_seg_data), // 시계 데이터 출력
         .seg_com(watch_seg_com),    // 시계 공통 신호 출력
         .leds(leds)
@@ -77,6 +80,7 @@ module state_app(
         .alarm_set_mode(alarm_set_mode),
         .seg_data(alarm_seg_data),
         .seg_com(alarm_seg_com)
+        .alarm_set_mode(alarm_set_mode)
     );
 
     assign lcd_e = clk_100hz;
