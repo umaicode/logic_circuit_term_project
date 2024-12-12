@@ -7,10 +7,12 @@ module state_app(
     output [7:0] seg_data, seg_com,       // 7-세그먼트 디스플레이 데이터 및 공통 신호
     output lcd_e, lcd_rs, lcd_rw,        // LCD 제어 신호
     output [7:0] lcd_data                // LCD 데이터
+    output [7:0] led
 );
 
     reg[7:0] seg_data;
     reg[7:0] seg_com;
+    reg[7:0] led
     
     // 내부 신호 선언
     wire clk_100hz; // 100Hz 클럭 신호
@@ -49,8 +51,8 @@ module state_app(
         .rst(rst),       // 리셋 신호
         .keypad(keypad), // 키패드 입력
         .seg_data(watch_seg_data), // 시계 데이터 출력
-        .seg_com(watch_seg_com)    // 시계 공통 신호 출력
-
+        .seg_com(watch_seg_com),    // 시계 공통 신호 출력
+        .leds(leds)
     );
 
     // 스톱워치 모듈 추가
@@ -63,6 +65,18 @@ module state_app(
         .start(start),        // 모듈 내부에서 버튼으로 제어
         .seg_data(stopwatch_seg_data), // 스톱워치 데이터 출력
         .seg_com(stopwatch_seg_com)    // 스톱워치 공통 신호 출력
+    );
+
+    // 알람 모듈 추가
+    wire [7:0] alarm_seg_data;
+    wire [7:0] alarm_seg_com;
+
+    alarm alarm_inst (
+        .clk(clk),
+        .rst(rst),
+        .alarm_set_mode(alarm_set_mode),
+        .seg_data(alarm_seg_data),
+        .seg_com(alarm_seg_com)
     );
 
     assign lcd_e = clk_100hz;
@@ -87,8 +101,8 @@ module state_app(
                 end
                 s2: begin
                     // 알람 설정 (나중에 구현)
-                    seg_data = 8'b0000_0000; // 기본값
-                    seg_com = 8'b1111_1111; // 기본값
+                    seg_data = alarm_seg_data; // 기본값
+                    seg_com = alarm_seg_com; // 기본값
                 end
                 default: begin
                     seg_data = watch_seg_data;
