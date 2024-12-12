@@ -1,4 +1,4 @@
-module watch(clk, rst, dip_sw, keypad, seg_data, seg_com);
+module watch(clk, rst, dip_sw, keypad, seg_data, seg_com, leds);
 
 input clk;            // 1kHz clock
 input rst;            // 리셋 신호
@@ -7,6 +7,9 @@ input [9:0] keypad;   // 키패드 입력 (0~9)
 
 output reg [7:0] seg_data;
 output reg [7:0] seg_com;
+
+// led 점등
+output reg [7:0] leds;
 
 // 시간 카운터
 reg [3:0] h_ten, h_one, m_ten, m_one, s_ten, s_one;
@@ -26,6 +29,43 @@ reg [9:0] keypad_prev;
 
 // ------------------------------ 알람 연결 --------------------------------------
 
+// 알람 모듈 신호
+wire [3:0] alarm_h_ten, alarm_h_one, alarm_m_ten, alarm_m_one;
+wire alarm_set_done;
+wire alarm_triggered;
+
+// 알람 모듈 인스턴스화
+alarm alarm_inst (
+    .clk(clk),
+    .rst(rst),
+    .keypad(keypad),
+    .alarm_set_mode(dip_sw),
+    .alarm_h_ten(alarm_h_ten),
+    .alarm_h_one(alarm_h_one),
+    .alarm_m_ten(alarm_m_ten),
+    .alarm_m_one(alarm_m_one),
+    .alarm_set_done(alarm_set_done),
+    .alarm_triggered(alarm_triggered),
+    .leds(leds)
+);
+
+// 알람 시간과 시계 시간 비교
+always @(posedge clk or posedge rst) begin
+    if (rst) begin
+        leds <= 8'b00000000;
+    end else begin
+        if (!dip_sw && alarm_set_done) begin
+            if (h_ten == alarm_h_ten && h_one == alarm_h_one &&
+                m_ten == alarm_m_ten && m_one == alarm_m_one) begin
+                leds <= 8'b11111111; // 알람 트리거 시 LED 점등
+            end else begin
+                leds <= 8'b00000000;
+            end
+        end else begin
+            leds <= 8'b00000000;
+        end
+    end
+end
 //--------------------------- 얼람 연결 done ---------------------------------
 
 // -----------------------------
