@@ -52,7 +52,7 @@ always @(posedge rst or posedge clk)
 
 // 1/100 ms counter
 always @(posedge rst or posedge clk)
-    if (rst) ms_one = 0;
+    if (rst)
         ms_one = 0;
         ms_ten = 0;
     end else if (h_cnt == 999) begin
