@@ -3,7 +3,8 @@ module state_app(
     input clk,         // 1kHz ?엯?젰 ?겢?윮
     input mode,        // ?긽?깭 ?쟾?솚 ?떊?샇
     input start,       // ?뒪?넲?썙移? ?떆?옉 ?떊?샇
-    input dip_sw,      // DIP ?뒪?쐞移? ?엯?젰 (1: ?꽕?젙 紐⑤뱶, 0: ?떆怨? 紐⑤뱶)
+    input dip_sw,
+    input dip_sw_timer      // DIP ?뒪?쐞移? ?엯?젰 (1: ?꽕?젙 紐⑤뱶, 0: ?떆怨? 紐⑤뱶)
     input alarm_set_mode, // ?븣?엺 ?꽕?젙 紐⑤뱶
     input [9:0] keypad, // ?궎?뙣?뱶 ?엯?젰
     output [7:0] seg_data, seg_com,       // 7-?꽭洹몃㉫?듃 ?뵒?뒪?뵆?젅?씠 ?뜲?씠?꽣 諛? 怨듯넻 ?떊?샇
@@ -69,17 +70,18 @@ module state_app(
         .seg_com(stopwatch_seg_com)    // ?뒪?넲?썙移? 怨듯넻 ?떊?샇 異쒕젰
     );
 
-    // ?븣?엺 紐⑤뱢 異붽?
-    wire [7:0] alarm_seg_data;
-    wire [7:0] alarm_seg_com;
+    wire [7:0] timer_seg_data;
+    wire [7:0] timer_seg_com;
 
-//    alarm alarm_inst (
-//        .clk(clk),
-//        .rst(rst),
-//        .alarm_set_mode(alarm_set_mode),
-//        .seg_data(alarm_seg_data),
-//        .seg_com(alarm_seg_com)
-//    );
+    timer timer_inst (
+        .clk(clk),
+        .rst(rst),
+        .dip_sw(dip_sw),
+        .keypad(keypad),
+        .seg_data(timer_seg_data),
+        .seg_com(timer_seg_com)
+    )
+
 
     assign lcd_e = clk_100hz;
     assign lcd_rw = 1'b0; // ?빆?긽 ?벐湲? 紐⑤뱶
@@ -103,8 +105,8 @@ module state_app(
                 end
                 s2: begin
                     // ?븣?엺 ?꽕?젙 (?굹以묒뿉 援ы쁽)
-                    seg_data = alarm_seg_data; // 湲곕낯媛?
-                    seg_com = alarm_seg_com; // 湲곕낯媛?
+                    seg_data = timer_seg_data; // 湲곕낯媛?
+                    seg_com = timer_seg_com; // 湲곕낯媛?
                 end
                 default: begin
                     seg_data = watch_seg_data;
