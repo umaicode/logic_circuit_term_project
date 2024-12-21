@@ -5,7 +5,6 @@ module state_app(
     input start,       // ?뒪?넲?썙移? ?떆?옉 ?떊?샇
     input dip_sw,
     input dip_sw_timer      // DIP ?뒪?쐞移? ?엯?젰 (1: ?꽕?젙 紐⑤뱶, 0: ?떆怨? 紐⑤뱶)
-    input alarm_set_mode, // ?븣?엺 ?꽕?젙 紐⑤뱶
     input [9:0] keypad, // ?궎?뙣?뱶 ?엯?젰
     output [7:0] seg_data, seg_com,       // 7-?꽭洹몃㉫?듃 ?뵒?뒪?뵆?젅?씠 ?뜲?씠?꽣 諛? 怨듯넻 ?떊?샇
     output lcd_e, lcd_rs, lcd_rw,        // LCD ?젣?뼱 ?떊?샇
@@ -17,15 +16,15 @@ module state_app(
     reg[7:0] seg_com;
     reg[7:0] led;
    
-    // ?궡遺? ?떊?샇 ?꽑?뼵
-    wire clk_100hz; // 100Hz ?겢?윮 ?떊?샇
+    // // ?궡遺? ?떊?샇 ?꽑?뼵
+    // wire clk_100hz; // 100Hz ?겢?윮 ?떊?샇
 
-    // ?겢?윮 遺꾩＜湲? ?씤?뒪?꽩?뒪?솕
-    clock_divider clk_div (
-        .clk_in(clk),    // 1kHz ?엯?젰 ?겢?윮
-        .rst(rst),       // 由ъ뀑 ?떊?샇
-        .clk_out(clk_100hz) // 100Hz 異쒕젰 ?겢?윮
-    );
+    // // ?겢?윮 遺꾩＜湲? ?씤?뒪?꽩?뒪?솕
+    // clock_divider clk_div (
+    //     .clk_in(clk),    // 1kHz ?엯?젰 ?겢?윮
+    //     .rst(rst),       // 由ъ뀑 ?떊?샇
+    //     .clk_out(clk_100hz) // 100Hz 異쒕젰 ?겢?윮
+    // );
 
     // ?긽?깭 癒몄떊 ?긽?깭 媛? ?젙?쓽
     parameter s0 = 2'b00, s1 = 2'b01, s2 = 2'b10;
@@ -82,9 +81,23 @@ module state_app(
         .seg_com(timer_seg_com)
     )
 
+        // LCD 제어
+    wire textlcd_e, textlcd_rs, textlcd_rw;
+    wire [7:0] textlcd_data;
 
-    assign lcd_e = clk_100hz;
-    assign lcd_rw = 1'b0; // ?빆?긽 ?벐湲? 紐⑤뱶
+    textlcd textlcd_inst (
+        .rst(rst),
+        .clk(clk),       // 100Hz 클럭
+        .lcd_e(textlcd_e),     // LCD Enable
+        .lcd_rs(textlcd_rs),   // LCD Register Select
+        .lcd_rw(textlcd_rw),   // LCD Read/Write
+        .lcd_data(textlcd_data) // LCD 데이터
+    );
+
+    assign lcd_e = textlcd_e;
+    assign lcd_rs = textlcd_rs;
+    assign lcd_rw = textlcd_rw;
+    assign lcd_data = textlcd_data;
 
     // ?긽?깭蹂? 7-?꽭洹몃㉫?듃 ?뵒?뒪?뵆?젅?씠 異쒕젰
     always @(posedge clk or posedge rst) begin
