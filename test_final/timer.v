@@ -1,8 +1,8 @@
-module timer(clk, rst, dip_sw, keypad, seg_data, seg_com);
+module timer(clk, rst, dip_sw_timer, keypad, seg_data, seg_com);
 
 input clk;            // 1kHz 클럭
 input rst;            // 리셋 신호
-input dip_sw;         // DIP 스위치 (1: 설정 모드, 0: 카운트다운 모드)
+input dip_sw_timer;         // DIP 스위치 (1: 설정 모드, 0: 카운트다운 모드)
 input [9:0] keypad;   // 키패드 입력 (0~9)
 
 output reg [7:0] seg_data; // 7-Segment 데이터 출력
@@ -52,7 +52,7 @@ always @(posedge clk or posedge rst) begin
     end else begin
         keypad_prev <= keypad;
 
-        if (dip_sw == 1 && !input_done) begin
+        if (dip_sw_timer == 1 && !input_done) begin
             // 설정 모드 (키패드 입력 처리)
             if (keypad != 10'b0000000000 && keypad_prev == 10'b0000000000) begin
                 case (input_cnt)
@@ -73,7 +73,7 @@ always @(posedge clk or posedge rst) begin
                     input_cnt <= 0;
                 end
             end
-        end else if (dip_sw == 0 && input_done && !timer_done) begin
+        end else if (dip_sw_timer == 0 && input_done && !timer_done) begin
             // 카운트다운 모드
             if (h_cnt >= 999) begin // 1초마다 감소
                 h_cnt <= 0;
