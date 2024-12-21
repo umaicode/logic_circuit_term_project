@@ -52,11 +52,11 @@ always @(posedge rst or posedge clk)
 
 // 1/100 ms counter
 always @(posedge rst or posedge clk)
-    if (rst)
+    if (rst) begin
         ms_one = 0;
         ms_ten = 0;
     end else if (h_cnt == 999) begin
-        if (running) gegin
+        if (running) begin
             if (ms_one >= 9) begin
                 ms_one = 0;
                 if (ms_ten >= 9) ms_ten = 0;

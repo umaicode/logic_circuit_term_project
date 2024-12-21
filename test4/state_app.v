@@ -8,13 +8,13 @@ module state_app(
     input [9:0] keypad, // 키패드 입력
     output [7:0] seg_data, seg_com,       // 7-세그먼트 디스플레이 데이터 및 공통 신호
     output lcd_e, lcd_rs, lcd_rw,        // LCD 제어 신호
-    output [7:0] lcd_data                // LCD 데이터
+    output [7:0] lcd_data,                // LCD 데이터
     output [7:0] led
 );
 
     reg[7:0] seg_data;
     reg[7:0] seg_com;
-    reg[7:0] led
+    reg[7:0] led;
     
     // 내부 신호 선언
     wire clk_100hz; // 100Hz 클럭 신호
