@@ -80,7 +80,6 @@ module state_app(
         .alarm_set_mode(alarm_set_mode),
         .seg_data(alarm_seg_data),
         .seg_com(alarm_seg_com)
-        .alarm_set_mode(alarm_set_mode)
     );
 
     assign lcd_e = clk_100hz;
