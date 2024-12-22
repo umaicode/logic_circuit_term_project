@@ -39,7 +39,7 @@ alarm alarm_inst (
     .clk(clk),
     .rst(rst),
     .keypad(keypad),
-    .alarm_set_mode(dip_sw),
+    .alarm_set_mode(alarm_set_mode),
     .alarm_h_ten(alarm_h_ten),
     .alarm_h_one(alarm_h_one),
     .alarm_m_ten(alarm_m_ten),
