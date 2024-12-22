@@ -11,12 +11,6 @@ module textlcd(rst, clk, lcd_e, lcd_rs, lcd_rw, lcd_data);
     reg [9:0] cnt;
     reg [2:0] state;
 
-    clock_divider clk_div (
-        .clk_in(clk),
-        .rst(rst),
-        .clk_out(clk_100hz)
-    );
-
     parameter delay = 3'b000,
               function_set = 3'b001,
               entry_mode = 3'b010,
