@@ -1,14 +1,14 @@
 module state_app(
-    input rst,         // 由ъ뀑 ?떊?샇 (active high)
-    input clk,         // 1kHz ?엯?젰 ?겢?윮
-    input mode,        // ?긽?깭 ?쟾?솚 ?떊?샇
-    input start,       // ?뒪?넲?썙移? ?떆?옉 ?떊?샇
+    input rst,         // 뵳 딅 ? 뻿? 깈 (active high)
+    input clk,         // 1kHz ? 뿯? 젾 ?寃 ? 쑏
+    input mode,        // ?湲 ?源 ? 읈? 넎 ? 뻿? 깈
+    input start,       // ? 뮞? 꽧? 뜖燁 ? ? 뻻? 삂 ? 뻿? 깈
     input dip_sw,
-    input dip_sw_timer      // DIP ?뒪?쐞移? ?엯?젰 (1: ?꽕?젙 紐⑤뱶, 0: ?떆怨? 紐⑤뱶)
-    input [9:0] keypad, // ?궎?뙣?뱶 ?엯?젰
-    output [7:0] seg_data, seg_com,       // 7-?꽭洹몃㉫?듃 ?뵒?뒪?뵆?젅?씠 ?뜲?씠?꽣 諛? 怨듯넻 ?떊?샇
-    output lcd_e, lcd_rs, lcd_rw,        // LCD ?젣?뼱 ?떊?샇
-    output [7:0] lcd_data,                // LCD ?뜲?씠?꽣
+    input dip_sw_timer,      // DIP ? 뮞? 맄燁 ? ? 뿯? 젾 (1: ?苑 ? 젟 筌뤴뫀諭 , 0: ? 뻻 ? 筌뤴뫀諭 )
+    input [9:0] keypad, // ?沅 ? 솭?諭 ? 뿯? 젾
+    output [7:0] seg_data, seg_com,       // 7-?苑 域밸챶 돧? 뱜 ?逾 ? 뮞?逾 ? 쟿? 뵠 ? 쑓? 뵠?苑 獄 ? ⑤벏 꽰 ? 뻿? 깈
+    output lcd_e, lcd_rs, lcd_rw,        // LCD ? 젫?堉 ? 뻿? 깈
+    output [7:0] lcd_data,                // LCD ? 쑓? 뵠?苑
     output [7:0] led
 );
 
@@ -16,57 +16,57 @@ module state_app(
     reg[7:0] seg_com;
     reg[7:0] led;
    
-    // // ?궡遺? ?떊?샇 ?꽑?뼵
-    // wire clk_100hz; // 100Hz ?겢?윮 ?떊?샇
+    // // ?沅↓겫? ? 뻿? 깈 ?苑 ?堉
+    // wire clk_100hz; // 100Hz ?寃 ? 쑏 ? 뻿? 깈
 
-    // // ?겢?윮 遺꾩＜湲? ?씤?뒪?꽩?뒪?솕
+    // // ?寃 ? 쑏 겫袁⑼폒疫 ? ? 뵥? 뮞?苑 ? 뮞? 넅
     // clock_divider clk_div (
-    //     .clk_in(clk),    // 1kHz ?엯?젰 ?겢?윮
-    //     .rst(rst),       // 由ъ뀑 ?떊?샇
-    //     .clk_out(clk_100hz) // 100Hz 異쒕젰 ?겢?윮
+    //     .clk_in(clk),    // 1kHz ? 뿯? 젾 ?寃 ? 쑏
+    //     .rst(rst),       // 뵳 딅 ? 뻿? 깈
+    //     .clk_out(clk_100hz) // 100Hz 빊 뮆 젾 ?寃 ? 쑏
     // );
 
-    // ?긽?깭 癒몄떊 ?긽?깭 媛? ?젙?쓽
+    // ?湲 ?源 솒紐꾨뻿 ?湲 ?源 揶 ? ? 젟? 벥
     parameter s0 = 2'b00, s1 = 2'b01, s2 = 2'b10;
-    reg [1:0] state_m; // ?쁽?옱 ?긽?깭瑜? ???옣?븯?뒗 ?젅吏??뒪?꽣
+    reg [1:0] state_m; // ? 겱? 삺 ?湲 ?源 몴? ??? 삢?釉 ? 뮉 ? 쟿筌 ?? 뮞?苑
 
-    // ?긽?깭 癒몄떊
+    // ?湲 ?源 솒紐꾨뻿
     always @(posedge rst or posedge mode) begin
         if (rst) begin
-            state_m <= s0; // 由ъ뀑 ?떆 珥덇린 ?긽?깭濡? ?꽕?젙
+            state_m <= s0; // 뵳 딅 ? 뻻 룯 뜃由 ?湲 ?源 嚥 ? ?苑 ? 젟
         end else begin
             case (state_m)
                 s0: state_m <= s1; // s0 -> s1
                 s1: state_m <= s2; // s1 -> s2
                 s2: state_m <= s0; // s2 -> s0
-                default: state_m <= s0; // 湲곕낯 ?긽?깭?뒗 s0
+                default: state_m <= s0; // 疫꿸퀡 궚 ?湲 ?源 ? 뮉 s0
             endcase
         end
     end
 
-    // ?떆怨? 紐⑤뱢 異쒕젰
-    wire [7:0] watch_seg_data; // ?떆怨? 紐⑤뱢?쓽 7-?꽭洹몃㉫?듃 ?뜲?씠?꽣
-    wire [7:0] watch_seg_com;  // ?떆怨? 紐⑤뱢?쓽 7-?꽭洹몃㉫?듃 怨듯넻 ?떊?샇
+    // ? 뻻 ? 筌뤴뫀諭 빊 뮆 젾
+    wire [7:0] watch_seg_data; // ? 뻻 ? 筌뤴뫀諭 ? 벥 7-?苑 域밸챶 돧? 뱜 ? 쑓? 뵠?苑
+    wire [7:0] watch_seg_com;  // ? 뻻 ? 筌뤴뫀諭 ? 벥 7-?苑 域밸챶 돧? 뱜 ⑤벏 꽰 ? 뻿? 깈
 
     watch watch_inst (
-        .clk(clk),       // ?떆怨꾨뒗 1kHz ?겢?윮 ?궗?슜
-        .rst(rst),       // 由ъ뀑 ?떊?샇
-        .keypad(keypad), // ?궎?뙣?뱶 ?엯?젰
-        .dip_sw(dip_sw), // DIP ?뒪?쐞移? ?엯?젰
-        .seg_data(watch_seg_data), // ?떆怨? ?뜲?씠?꽣 異쒕젰
-        .seg_com(watch_seg_com)    // ?떆怨? 怨듯넻 ?떊?샇 異쒕젰
+        .clk(clk),       // ? 뻻 ④쑬 뮉 1kHz ?寃 ? 쑏 ?沅 ? 뒠
+        .rst(rst),       // 뵳 딅 ? 뻿? 깈
+        .keypad(keypad), // ?沅 ? 솭?諭 ? 뿯? 젾
+        .dip_sw(dip_sw), // DIP ? 뮞? 맄燁 ? ? 뿯? 젾
+        .seg_data(watch_seg_data), // ? 뻻 ? ? 쑓? 뵠?苑 빊 뮆 젾
+        .seg_com(watch_seg_com)    // ? 뻻 ? ⑤벏 꽰 ? 뻿? 깈 빊 뮆 젾
     );
 
-    // ?뒪?넲?썙移? 紐⑤뱢 異붽?
-    wire [7:0] stopwatch_seg_data; // ?뒪?넲?썙移? 7-?꽭洹몃㉫?듃 ?뜲?씠?꽣
-    wire [7:0] stopwatch_seg_com;  // ?뒪?넲?썙移? 7-?꽭洹몃㉫?듃 怨듯넻 ?떊?샇
+    // ? 뮞? 꽧? 뜖燁 ? 筌뤴뫀諭 빊遺 ?
+    wire [7:0] stopwatch_seg_data; // ? 뮞? 꽧? 뜖燁 ? 7-?苑 域밸챶 돧? 뱜 ? 쑓? 뵠?苑
+    wire [7:0] stopwatch_seg_com;  // ? 뮞? 꽧? 뜖燁 ? 7-?苑 域밸챶 돧? 뱜 ⑤벏 꽰 ? 뻿? 깈
 
     stopwatch stopwatch_inst (
-        .clk(clk),           // 1kHz ?겢?윮
-        .rst(rst),           // 由ъ뀑 ?떊?샇
-        .start(start),        // 紐⑤뱢 ?궡遺??뿉?꽌 踰꾪듉?쑝濡? ?젣?뼱
-        .seg_data(stopwatch_seg_data), // ?뒪?넲?썙移? ?뜲?씠?꽣 異쒕젰
-        .seg_com(stopwatch_seg_com)    // ?뒪?넲?썙移? 怨듯넻 ?떊?샇 異쒕젰
+        .clk(clk),           // 1kHz ?寃 ? 쑏
+        .rst(rst),           // 뵳 딅 ? 뻿? 깈
+        .start(start),        // 筌뤴뫀諭 ?沅↓겫??肉 ?苑 甕곌쑵 뱣? 몵嚥 ? ? 젫?堉
+        .seg_data(stopwatch_seg_data), // ? 뮞? 꽧? 뜖燁 ? ? 쑓? 뵠?苑 빊 뮆 젾
+        .seg_com(stopwatch_seg_com)    // ? 뮞? 꽧? 뜖燁 ? ⑤벏 꽰 ? 뻿? 깈 빊 뮆 젾
     );
 
     wire [7:0] timer_seg_data;
@@ -75,23 +75,23 @@ module state_app(
     timer timer_inst (
         .clk(clk),
         .rst(rst),
-        .dip_sw(dip_sw),
+        .dip_sw_timer(dip_sw_timer),
         .keypad(keypad),
         .seg_data(timer_seg_data),
         .seg_com(timer_seg_com)
-    )
+    );
 
-        // LCD 제어
+        // LCD 젣 뼱
     wire textlcd_e, textlcd_rs, textlcd_rw;
     wire [7:0] textlcd_data;
 
     textlcd textlcd_inst (
         .rst(rst),
-        .clk(clk),       // 100Hz 클럭
+        .clk(clk),       // 100Hz 겢 윮
         .lcd_e(textlcd_e),     // LCD Enable
         .lcd_rs(textlcd_rs),   // LCD Register Select
         .lcd_rw(textlcd_rw),   // LCD Read/Write
-        .lcd_data(textlcd_data) // LCD 데이터
+        .lcd_data(textlcd_data) // LCD 뜲 씠 꽣
     );
 
     assign lcd_e = textlcd_e;
@@ -99,7 +99,7 @@ module state_app(
     assign lcd_rw = textlcd_rw;
     assign lcd_data = textlcd_data;
 
-    // ?긽?깭蹂? 7-?꽭洹몃㉫?듃 ?뵒?뒪?뵆?젅?씠 異쒕젰
+    // ?湲 ?源 癰 ? 7-?苑 域밸챶 돧? 뱜 ?逾 ? 뮞?逾 ? 쟿? 뵠 빊 뮆 젾
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             seg_data <= 8'b0000_0000;
@@ -107,19 +107,19 @@ module state_app(
         end else begin
             case (state_m)
                 s0: begin
-                    // ?떆怨? 異쒕젰
+                    // ? 뻻 ? 빊 뮆 젾
                     seg_data = watch_seg_data;
                     seg_com = watch_seg_com;
                 end
                 s1: begin
-                    // ?뒪?넲?썙移? 異쒕젰
+                    // ? 뮞? 꽧? 뜖燁 ? 빊 뮆 젾
                     seg_data = stopwatch_seg_data;
                     seg_com = stopwatch_seg_com;
                 end
                 s2: begin
-                    // ?븣?엺 ?꽕?젙 (?굹以묒뿉 援ы쁽)
-                    seg_data = timer_seg_data; // 湲곕낯媛?
-                    seg_com = timer_seg_com; // 湲곕낯媛?
+                    // ?釉 ? 뿺 ?苑 ? 젟 (?援밥빳臾믩퓠 뤃 뗭겱)
+                    seg_data = timer_seg_data; // 疫꿸퀡 궚揶 ?
+                    seg_com = timer_seg_com; // 疫꿸퀡 궚揶 ?
                 end
                 default: begin
                     seg_data = watch_seg_data;
