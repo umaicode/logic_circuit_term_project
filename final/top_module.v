@@ -15,15 +15,18 @@ module top_module(
     output [7:0] led,
     output piezo_out
 );
-    // 1) 1MHz -> 1kHz 분주
+
+    //============================== 1) 1MHz -> 1kHz 분주 ==============================
     wire clk_1khz;
     clock_divider_1k div_1k (
         .clk_in(clk_1mhz),
         .rst(rst),
         .clk_out(clk_1khz)
     );
+    //============================== 1) 1MHz -> 1kHz 분주 ==============================
 
-    // 2) 상태 전환 로직
+
+    //============================== 2) 상태 전환 로직 ==============================
     parameter s0 = 2'b00,
               s1 = 2'b01,
               s2 = 2'b10;
@@ -41,8 +44,10 @@ module top_module(
             endcase
         end
     end
+    //============================== 2) 상태 전환 로직 ==============================
 
-    // 3) Watch (1kHz)
+
+    //============================== 3) Watch (1kHz) ==============================
     wire [7:0] watch_seg_data;
     wire [7:0] watch_seg_com;
     watch watch_inst (
@@ -53,8 +58,10 @@ module top_module(
         .seg_data(watch_seg_data),
         .seg_com(watch_seg_com)
     );
+    //============================== 3) Watch (1kHz) ==============================
 
-    // 4) Stopwatch (1MHz)
+
+    //============================== 4) Stopwatch (1MHz) ==============================
     wire [7:0] stopwatch_seg_data;
     wire [7:0] stopwatch_seg_com;
     stopwatch stopwatch_inst (
@@ -64,12 +71,14 @@ module top_module(
         .seg_data(stopwatch_seg_data),
         .seg_com(stopwatch_seg_com)
     );
+    //============================== 4) Stopwatch (1MHz) ==============================
 
-    // 5) Timer (1kHz)
+
+    //============================== 5) Timer (1kHz) ==============================
     wire [7:0] timer_seg_data;
     wire [7:0] timer_seg_com;
     wire [7:0] timer_led;
-    wire timer_done_wire; // ★ timer 완료 신호
+    wire timer_done_wire; // timer 완료 신호
 
     timer timer_inst (
         .clk(clk_1khz),
@@ -79,12 +88,12 @@ module top_module(
         .seg_data(timer_seg_data),
         .seg_com(timer_seg_com),
         .led(timer_led),
-
-        // 연결
-        .timer_done_out(timer_done_wire) // ★ 출력 연결
+        .timer_done_out(timer_done_wire) // 출력 연결
     );
+    //============================== 5) Timer (1kHz) ==============================
 
-    // 6) TextLCD (1kHz)
+
+    //============================== 6) TextLCD (1kHz) ==============================
     wire [7:0] textlcd_data_w;
     wire textlcd_e_w, textlcd_rs_w, textlcd_rw_w;
     reg [1:0] msg_sel_reg;
@@ -111,8 +120,10 @@ module top_module(
     assign lcd_rs   = textlcd_rs_w;
     assign lcd_rw   = textlcd_rw_w;
     assign lcd_data = textlcd_data_w;
+    //============================== 6) TextLCD (1kHz) ==============================
 
-    // 7) 상태별 FND 표시
+
+    //============================== 7) 상태별 FND 표시 ==============================
     reg [7:0] seg_data_reg;
     reg [7:0] seg_com_reg;
     assign seg_data = seg_data_reg;
@@ -143,12 +154,15 @@ module top_module(
             endcase
         end
     end
+    //============================== 7) 상태별 FND 표시 ==============================
 
-    // 8) LED 연결
+
+    //============================== 8) LED 연결 ==============================
     assign led = timer_led; 
+    //============================== 8) LED 연결 ==============================
 
-    // 9) Piezo 멜로디
-    // timer_done_wire==1 → 한 번만 멜로디 재생
+
+    //============================== 9) Piezo 멜로디 ==============================
     wire melody_en = timer_done_wire; 
 
     piezo_melody melody_inst (
@@ -157,5 +171,7 @@ module top_module(
         .start_melody(melody_en),
         .piezo_out(piezo_out)
     );
+    //============================== 9) Piezo 멜로디 ==============================
+
 
 endmodule
