@@ -104,6 +104,7 @@ module piezo_melody(
                     // 한 바퀴 후 종료
                     piezo_out <= 1'b0;
                     // start_melody 계속 1이어도 무시
+                    if (!start_melody) state <= IDLE; // start_melody=0이면 대기
                 end
             endcase
         end
