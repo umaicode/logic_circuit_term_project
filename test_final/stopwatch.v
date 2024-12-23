@@ -139,25 +139,3 @@ module stopwatch(
     end
 
 endmodule
-
-// Segment decoding module (example)
-module seg_decode(
-    input [3:0] bin,
-    output reg [7:0] seg
-);
-    always @(*) begin
-        case (bin)
-            4'd0: seg = 8'b1100_0000; // 0
-            4'd1: seg = 8'b1111_1001; // 1
-            4'd2: seg = 8'b1010_0100; // 2
-            4'd3: seg = 8'b1011_0000; // 3
-            4'd4: seg = 8'b1001_1001; // 4
-            4'd5: seg = 8'b1001_0010; // 5
-            4'd6: seg = 8'b1000_0010; // 6
-            4'd7: seg = 8'b1111_1000; // 7
-            4'd8: seg = 8'b1000_0000; // 8
-            4'd9: seg = 8'b1001_0000; // 9
-            default: seg = 8'b1111_1111; // Blank
-        endcase
-    end
-endmodule
