@@ -8,9 +8,10 @@ module timer(
     output reg [7:0] seg_com, // 7-Segment Common
     output reg [7:0] led,     // LED 제어 신호 (8비트)
 
-    // ★ 추가: 타이머 완료 신호를 상위로 보내는 포트
-    output wire timer_done_out 
+    // 타이머가 00:00:00 도달 시=1 → 상위로 보내서 Piezo나 다른 로직 트리거
+    output wire timer_done_out
 );
+
     //-----------------------------------
     // (1) 내부 레지스터/와이어 선언
     //-----------------------------------
@@ -23,15 +24,15 @@ module timer(
     reg input_done;          
 
     reg [9:0] h_cnt;         // 1ms마다 카운트 -> 1000이면 1초
-    reg timer_done;          // 00:00:00 도달 시=1
+    reg timer_done;          // 00:00:00 도달 시=1 (내부 레지스터)
 
     reg [15:0] blink_cnt;    // LED 깜빡임 카운터
 
-    // ★ timer_done을 상위로 내보내기
+    // timer_done을 상위로 내보냄
     assign timer_done_out = timer_done;
 
     //-----------------------------------
-    // (2) 입력 세팅 로직
+    // (2) 입력 세팅 로직 + 동작 로직
     //-----------------------------------
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -45,15 +46,18 @@ module timer(
             keypad_prev <= 10'b0000000000;
             led         <= 8'b00000000;
             blink_cnt   <= 16'd0;
-        end else begin
-            // 이전 키패드 상태 저장
+        end 
+        else begin
+            // 키패드 에지 검출용
             keypad_prev <= keypad;
 
-            // 세팅모드
+            // (A) 세팅모드(dip_sw_timer=1)
             if (dip_sw_timer) begin
+                // ★ 타이머가 이미 끝난 상태라도, 재설정 모드 진입 시 done을 0으로 초기화
                 timer_done <= 0;    
                 h_cnt <= 0;         
 
+                // 키패드 입력 처리
                 if (keypad != 0 && keypad_prev == 0) begin
                     case (input_cnt)
                         0: h_ten <= keypad_to_digit(keypad);
@@ -73,17 +77,20 @@ module timer(
                         input_cnt <= 0;
                 end
             end 
-            // 동작모드
+            // (B) 동작모드(dip_sw_timer=0) & 입력완료 시
             else if (input_done) begin
+                // 이미 00:00:00 ?
                 if (h_ten==0 && h_one==0 &&
                     m_ten==0 && m_one==0 &&
                     s_ten==0 && s_one==0) begin
-                    timer_done <= 1; // ★ 00:00:00 도달
-                end else begin
+                    timer_done <= 1; 
+                end 
+                else begin
                     // 1초마다 감소
                     if (h_cnt >= 999) begin
                         h_cnt <= 0;
-                        // 초 감소 로직
+
+                        // ↓ 초 내리는 로직 (기존과 동일)
                         if (s_one == 0) begin
                             s_one <= 9;
                             if (s_ten == 0) begin
@@ -126,7 +133,7 @@ module timer(
                     blink_cnt <= blink_cnt + 1;
                 end
             end else begin
-                // 동작 중
+                // 타이머 동작 중 or reset
                 led <= 8'b00000000;
                 blink_cnt <= 0;
             end
@@ -149,7 +156,7 @@ module timer(
             10'b0010000000: keypad_to_digit = 4'd7;
             10'b0100000000: keypad_to_digit = 4'd8;
             10'b1000000000: keypad_to_digit = 4'd9;
-            default: keypad_to_digit = 4'd0;
+            default:         keypad_to_digit = 4'd0;
         endcase
     endfunction
 
@@ -160,20 +167,22 @@ module timer(
     wire [7:0] seg_m_ten, seg_m_one;
     wire [7:0] seg_s_ten, seg_s_one;
 
-    seg_decode u0(h_ten, seg_h_ten);
-    seg_decode u1(h_one, seg_h_one);
-    seg_decode u2(m_ten, seg_m_ten);
-    seg_decode u3(m_one, seg_m_one);
-    seg_decode u4(s_ten, seg_s_ten);
-    seg_decode u5(s_one, seg_s_one);
+    seg_decode u0 (h_ten, seg_h_ten);
+    seg_decode u1 (h_one, seg_h_one);
+    seg_decode u2 (m_ten, seg_m_ten);
+    seg_decode u3 (m_one, seg_m_one);
+    seg_decode u4 (s_ten, seg_s_ten);
+    seg_decode u5 (s_one, seg_s_one);
 
     //-----------------------------------
     // (5) 세그먼트 분할 구동
     //-----------------------------------
     reg [2:0] s_cnt;
     always @(posedge clk or posedge rst) begin
-        if (rst) s_cnt <= 0;
-        else     s_cnt <= s_cnt + 1;
+        if (rst) 
+            s_cnt <= 0;
+        else     
+            s_cnt <= s_cnt + 1;
     end
 
     always @(posedge clk or posedge rst) begin
@@ -182,18 +191,22 @@ module timer(
             seg_com  <= 8'b11111111;
         end else begin
             case(s_cnt)
-                // 앞 2칸 비우기 (예시)
+                // 필요시 앞 2칸 비우기
                 3'd0: begin seg_com <= 8'b0111_1111; seg_data <= 8'b0000_0000; end
                 3'd1: begin seg_com <= 8'b1011_1111; seg_data <= 8'b0000_0000; end
-                // h_ten, h_one
+
+                // 시 tens, 시 ones
                 3'd2: begin seg_com <= 8'b1101_1111; seg_data <= seg_h_ten; end
                 3'd3: begin seg_com <= 8'b1110_1111; seg_data <= seg_h_one; end
-                // m_ten, m_one
+
+                // 분 tens, 분 ones
                 3'd4: begin seg_com <= 8'b1111_0111; seg_data <= seg_m_ten; end
                 3'd5: begin seg_com <= 8'b1111_1011; seg_data <= seg_m_one; end
-                // s_ten, s_one
+
+                // 초 tens, 초 ones
                 3'd6: begin seg_com <= 8'b1111_1101; seg_data <= seg_s_ten; end
                 3'd7: begin seg_com <= 8'b1111_1110; seg_data <= seg_s_one; end
+
                 default: begin
                     seg_com  <= 8'b11111111;
                     seg_data <= 8'b00000000;
