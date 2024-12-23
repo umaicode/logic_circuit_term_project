@@ -1,19 +1,23 @@
 module piezo_melody(
-    input clk,           // 1MHz
+    input clk,              // 1MHz
     input rst,
-    input start_melody,  // 1이면 멜로디 시작
+    input start_melody,     // 1이면 멜로디 시작
     output reg piezo_out
 );
-    // 각 음에 대응하는 토글 주기 (1MHz 기준)
-    // 도(C4) ≈ 1MHz/(2*261.63) ~ 1911
-    // 레(D4) ≈ 1703
-    // 미(E4) ≈ 1517
-    // 파(F4) ≈ 1432
-    // 솔(G4) ≈ 1276
-    // 라(A4) ≈ 1136
-    // 시(B4) ≈ 1012
-    // 다음 옥타브 도(C5) ≈ 956 (또는 955)
 
+    /* @brief : 피에조 부저를 이용한 멜로디 음계
+    * 각 음에 대응하는 토글 주기 (1MHz 기준)
+    * 도(C4) ≈ 1MHz/(2*261.63) ~ 1911
+    * 레(D4) ≈ 1703
+    * 미(E4) ≈ 1517
+    * 파(F4) ≈ 1432
+    * 솔(G4) ≈ 1276
+    * 라(A4) ≈ 1136
+    * 시(B4) ≈ 1012
+    * 다음 옥타브 도(C5) ≈ 956 (또는 955)
+    */
+
+    // @param : 토글 주기 상수
     parameter C4 = 1911;
     parameter D4 = 1703;
     parameter E4 = 1517;
@@ -23,7 +27,8 @@ module piezo_melody(
     parameter B4 = 1012;
     parameter C5 =  956;
 
-    // 내부 FSM 제어용
+
+    //============================== 내부 FSM 제어 레지스터 ==============================
     reg [15:0] tone_period;
     reg [31:0] cnt;
     reg [3:0] melody_step;         // 0~7
@@ -32,7 +37,10 @@ module piezo_melody(
     // 2비트 상태: IDLE, PLAY, DONE
     reg [1:0] state;
     parameter IDLE = 2'd0, PLAY = 2'd1, DONE = 2'd2;
+    //============================== 내부 FSM 제어 레지스터 ==============================
 
+
+    //============================== FSM 구현 ==============================
     always @(posedge clk or posedge rst) begin
         if(rst) begin
             state <= IDLE;
@@ -44,9 +52,7 @@ module piezo_melody(
         end 
         else begin
             case (state)
-                //----------------------------------
-                // (A) IDLE
-                //----------------------------------
+                //---------------------------------- (1) IDLE ----------------------------------
                 IDLE: begin
                     // 준비 상태
                     piezo_out <= 1'b0;
@@ -59,9 +65,7 @@ module piezo_melody(
                     end
                 end
 
-                //----------------------------------
-                // (B) PLAY
-                //----------------------------------
+                //---------------------------------- (2) PLAY ----------------------------------
                 PLAY: begin
                     // 1) 톤 생성
                     if (cnt >= tone_period) begin
@@ -71,7 +75,7 @@ module piezo_melody(
                         cnt <= cnt + 1;
                     end
 
-                    // 2) 일정 시간(약 0.5초) 후 다음 음으로
+                    // 2) 일정 시간(약 0.5초) 후 다음 음으로 가는 로직
                     if(note_duration_cnt >= 500_000) begin
                         note_duration_cnt <= 0;
                         melody_step <= melody_step + 1;
@@ -97,16 +101,16 @@ module piezo_melody(
                     endcase
                 end
 
-                //----------------------------------
-                // (C) DONE
-                //----------------------------------
+                //---------------------------------- (3) DONE ----------------------------------
                 DONE: begin
-                    // 한 바퀴 후 종료
+                    // 한번 재생 후 종료
                     piezo_out <= 1'b0;
-                    // start_melody 계속 1이어도 무시
                     if (!start_melody) state <= IDLE; // start_melody=0이면 대기
                 end
             endcase
         end
     end
+    //============================== FSM 구현 ==============================
+
+
 endmodule
