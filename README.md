@@ -1,46 +1,123 @@
-# 2024-2 : 논리회로 설계 및 실험 텀프로젝트
+# 2024-2 : 논리회로 설계 및 실험 텀프로젝트 : 전자시계
 
-## watch.v
-
-### line 1 ~ 16
-시계 로직의 Top Project 파일로 입/출력 포트와 로직에서 사용할 변수를 선언한 부분이다.
-
-### line 22 ~ 49
-위의 로직은 clk의 입려을 받아 카운트하는 에제이다. 1kHz의 클러 입력을 받기 때문에 첫번째 always 문에서는 1초를 카운트하도록 1000번을 카운트한다. 두번째 always 문에서는 앞의 1초를 카운트할 때 마다 s_one를 카운트하여, 1의 자리의 초를 카운트하도록 설계하였고, 아래의 로직들도 이와 비슷하게 각각 10의 자리의 초, 1의 자리의 분, 10의 자리의 분을 카운트 하도록 설계하였다.
-
-### line 53 ~ 56
-위의 로직은 앞에서 카운트한 초, 분의 값을 7-segment에서 표시할 데이터로 디코딩하는 seg_decode 파일과 연결하는 부분이다. 이 디코딩 로직은 아래에서 다시 설명한다.
-
-### line 61 ~ 85
-위의 로직은 앞에서 디코딩한 데이터를 7-segment에 표시하기 위한 블록이다. 클럭을 이용해 카운트하여, 7-segment을 선택하고(seg_com), 각 선택하였을 때의 데이터를 전달(seg_data)하도록 설계되어 있다.
-
-### TODO
-시간 구현 로직 추가함.
-
-## watch_2.v
-### 주요 수정 사항
-시계 설정 구현. 시작하자마자 시간 입력.
-
-## watch_7.v
-### 12/10 실험 예정 with piezo
-
-## textlcd.v
-1. watch_4.v, lcd_control.v 와 세트
-
-## textlcd_original.v
-1. textlcd.v의 원본
+## 1. top_module.v
+    * 모든 .v 파일 모듈화
+    * top_module을 통해 FSM 구성 후 제어
+    * 1 MHz
+      * stopwatch.v
+      * piezo.v
+    * 1 MHz -> 1 kHz
+      * watch.v
+      * timer.v
+    * 1 MHz -> 1 kHz -> 100 Hz
+      * textlcd.v
 
 
-## seg_decode.v
+---
+## 2. watch.v
+    * 1 kHz 사용
+    * HH:MM:SS 출력
+    * 키패드 입력 처리, 시간 설정, 시계 동작 로직 구현
+    * 키패드 입력 숫자로 변환하는 함수 구현
 
-이 로직은 앞의 예제에서 설계한 7-segment decoder의 회로이다. data_in이라는 4비트의 포트의 입력이 들어왔을 때, 해당 값을 표시할 수 있는 7-segment 디코딩 값이 출력되도록 설계되었다.
 
+---
+## 3. stopwatch.v
+    * 1 MHz 사용
+    * HH:MM:SS:MSMS 출력
+    * watch.v와 로직 동일
+
+
+---
+## 4. timer.v
+    * 1 kHz 사용
+    * HH:MM:SS 출력
+    * watch.v는 증가시키는 로직. timer.v는 감소시키는 로직 구현
+    * LED control : timer_done 트리거 발생 시 LED 5회 Blink
+    * timer_done 트리거 top_module로 넘겨서 piezo_melody.v에 전달
+
+
+---
+## 5. textlcd.v
+    * 100 Hz 사용
+    * FSM 구현하여 MODE에 따라 다른 텍스트 출력 (MODE 0 : watch, MODE 1 : stopwatch, MODE 2 : timer)
+
+
+---
+## 6. clock_divider_1k.v
+    * 1 MHz -> 1 kHz 분주기
+    * 시계는 1초를 세기 떄문에 1 kHz가 필요하나 Piezo의 경우 1 MHz가 필요하여 분주기 설정
+
+
+---
+## 7. peizo_melody.v
+    * FSM 구현 (0 : IDLE, 1 : PLAY, 2 : DONE)
+    * C4 -> D4 -> E4 -> F4 -> G4 -> A4 -> B4 -> C5 (0.5초 후 다음 음으로 가는 로직)
+
+
+---
+## 8. seg_decode.v
+    * 입력받은 숫자 7-segment로 디코딩
+    * a, b, c, d, e, f, g, com -> 8b'00000000 방식
+
+
+---
 ## I/O ports
-### watch.v
 |포트이름|핀 번호|하드웨어 설명|
-|:------------:|:------------:|:------------:|
-|rst|K4|SW_1|
-|clk|B6|main_clock1|
+|:--------------:|:--------------:|:--------------:|
+||||
+||__INPUT__||
+||||
+|rst|U4|dip_sw_8|
+|clk_1mhz|B6|main_clock1|
+|mode|L7|Number : *|
+|start|K6|Number : #|
+|dip_sw|Y1|Time Setting|
+|dip_sw_timer|W3|Timer Setting|
+||||
+||__KEYPAD__||
+||||
+|keypad[9]|K2|Number : 9|
+|keypad[8]|J2|Number : 8|
+|keypad[7]|L5|Number : 7|
+|keypad[6]|N5|Number : 6|
+|keypad[5]|P6|Number : 5|
+|keypad[4]|N1|Number : 4|
+|keypad[3]|N4|Number : 3|
+|keypad[2]|N8|Number : 2|
+|keypad[1]|K4|Number : 1|
+|keypad[0]|L1|Number : 0|
+||||
+||__TEXT_LCD__||
+||||
+|lcd_data[7]|D1|LCD_D7|
+|lcd_data[6]|C1|LCD_D6|
+|lcd_data[5]|C5|LCD_D5|
+|lcd_data[4]|A2|LCD_D4|
+|lcd_data[3]|D4|LCD_D3|
+|lcd_data[2]|C3|LCD_D2|
+|lcd_data[1]|B2|LCD_D1|
+|lcd_data[0]|A4|LCD_D0|
+|lcd_e|A6|LCD_E|
+|lcd_rs|G6|LCD_RS|
+|lcd_rw|D6|LCD_RW|
+||||
+||__PIEZO__||
+|piezo_out|Y21|piezo|
+||||
+||__8-LED__||
+||||
+|led[7]|N5|LED_7|
+|led[6]|M1|LED_6|
+|led[5]|M3|LED_5|
+|led[4]|M7|LED_4|
+|led[3]|N7|LED_3|
+|led[2]|M2|LED_2|
+|led[1]|M4|LED_1|
+|led[0]|L4|LED_0|
+||||
+||__7-SEGMENT__||
+||||
 |seg_com[7]|H4|AR_SEG_S0|
 |seg_com[6]|H6|AR_SEG_S1|
 |seg_com[5]|G1|AR_SEG_S2|
@@ -58,30 +135,33 @@
 |seg_data[1]|J7|AR_SEG_G|
 |seg_data[0]|H2|AR_SEG_DP|
 
-### textlcd.v
-|포트이름|핀 번호|하드웨어 설명|
-|:------------:|:------------:|:------------:|
-|rst|K4|SW_1|
-|clk|B6|main_clock1|
-||||
-|lcd_data[7]|D1|LCD_D7|
-|lcd_data[6]|C1|LCD_D6|
-|lcd_data[5]|C5|LCD_D5|
-|lcd_data[4]|A2|LCD_D4|
-|lcd_data[3]|D4|LCD_D3|
-|lcd_data[2]|C3|LCD_D2|
-|lcd_data[1]|B2|LCD_D1|
-|lcd_data[0]|A4|LCD_D0|
-|lcd_e|F5|LCD_E|
-|lcd_rs|E2|LCD_RS|
-|lcd_rw|E4|LCD_RW|
 
-### piezo.v
-|포트이름|핀 번호|하드웨어 설명|
-|:------------:|:------------:|:------------:|
-|rst|K4|SW_1|
-|clk|B6|Main_clock|
-|piezo|Y21|piezo|
-
-## piezo.v
-1. piezo clock이 현재 1 Mhz인데 1 khz로 바꿔야 한다.
+## Project Structure
+```
+.
+├── README.md
+├── final
+│   ├── clock_divider_1k.v
+│   ├── piezo_melody.v
+│   ├── seg_decode.v
+│   ├── stopwatch.v
+│   ├── textlcd.v
+│   ├── timer.v
+│   ├── top_module.v
+│   └── watch.v
+├── original_code
+│   ├── clock_divider_original.v
+│   ├── peizo_original.v
+│   ├── seg_decode.v
+│   ├── state_app_original.v
+│   ├── stopwatch_original.v
+│   ├── textlcd_original.v
+│   └── watch.v
+└── test_final
+    ├── seg_decode.v
+    ├── state_app.v
+    ├── stopwatch.v
+    ├── textlcd.v
+    ├── timer.v
+    └── watch.v
+```
