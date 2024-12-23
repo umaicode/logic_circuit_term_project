@@ -15,7 +15,7 @@ module timer(
     //-----------------------------------
     // (1) 내부 레지스터/와이어 선언
     //-----------------------------------
-    reg [3:0] h_ten, h_one;  // 시(00~99 가정)
+    reg [3:0] h_ten, h_one;  // 시(00~99)
     reg [3:0] m_ten, m_one;  // 분(00~59)
     reg [3:0] s_ten, s_one;  // 초(00~59)
 
@@ -26,38 +26,47 @@ module timer(
     reg [9:0] h_cnt;         // 1ms마다 카운트 -> 1000이면 1초
     reg timer_done;          // 00:00:00 도달 시=1 (내부 레지스터)
 
-    reg [15:0] blink_cnt;    // LED 깜빡임 카운터
+    // ★ LED 깜빡임 관련
+    reg [15:0] blink_cnt;        // LED 토글 주기(0.5초)
+    reg [3:0]  led_toggle_count; // LED 토글 횟수 (최대 10회)
 
-    // timer_done을 상위로 내보냄
+    // timer_done을 상위로
     assign timer_done_out = timer_done;
 
     //-----------------------------------
-    // (2) 입력 세팅 로직 + 동작 로직
+    // (2) 입력/동작 로직
     //-----------------------------------
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            input_cnt   <= 0;
-            input_done  <= 0;
-            timer_done  <= 0;
-            h_cnt       <= 0;
+            input_cnt  <= 0;
+            input_done <= 0;
+            timer_done <= 0;
+            h_cnt      <= 0;
             h_ten <= 0; h_one <= 0;
             m_ten <= 0; m_one <= 0;
             s_ten <= 0; s_one <= 0;
+
             keypad_prev <= 10'b0000000000;
             led         <= 8'b00000000;
-            blink_cnt   <= 16'd0;
+            blink_cnt   <= 0;
+            led_toggle_count <= 0;
         end 
         else begin
-            // 키패드 에지 검출용
+            // 키패드 에지 검출
             keypad_prev <= keypad;
 
-            // (A) 세팅모드(dip_sw_timer=1)
+            // (A) 세팅모드
             if (dip_sw_timer) begin
-                // ★ 타이머가 이미 끝난 상태라도, 재설정 모드 진입 시 done을 0으로 초기화
-                timer_done <= 0;    
-                h_cnt <= 0;         
+                // 재설정
+                timer_done <= 0;
+                h_cnt <= 0;
 
-                // 키패드 입력 처리
+                // LED 관련도 초기화
+                led <= 8'b00000000;
+                blink_cnt <= 0;
+                led_toggle_count <= 0;
+
+                // 키패드 입력
                 if (keypad != 0 && keypad_prev == 0) begin
                     case (input_cnt)
                         0: h_ten <= keypad_to_digit(keypad);
@@ -71,26 +80,23 @@ module timer(
                         end
                     endcase
 
-                    if (input_cnt < 5)
-                        input_cnt <= input_cnt + 1;
-                    else
-                        input_cnt <= 0;
+                    if (input_cnt < 5) input_cnt <= input_cnt + 1;
+                    else input_cnt <= 0;
                 end
             end 
-            // (B) 동작모드(dip_sw_timer=0) & 입력완료 시
+            // (B) 동작모드
             else if (input_done) begin
-                // 이미 00:00:00 ?
+                // 00:00:00이면 timer_done=1
                 if (h_ten==0 && h_one==0 &&
                     m_ten==0 && m_one==0 &&
                     s_ten==0 && s_one==0) begin
-                    timer_done <= 1; 
+                    timer_done <= 1;
                 end 
                 else begin
                     // 1초마다 감소
                     if (h_cnt >= 999) begin
                         h_cnt <= 0;
-
-                        // ↓ 초 내리는 로직 (기존과 동일)
+                        // 초 내리기 로직
                         if (s_one == 0) begin
                             s_one <= 9;
                             if (s_ten == 0) begin
@@ -100,22 +106,22 @@ module timer(
                                     if (m_ten == 0) begin
                                         m_ten <= 5;
                                         if (h_one == 0) begin
-                                            h_ten <= (h_ten - 1);
+                                            h_ten <= h_ten - 1;
                                             h_one <= 9;
                                         end else begin
-                                            h_one <= (h_one - 1);
+                                            h_one <= h_one - 1;
                                         end
                                     end else begin
-                                        m_ten <= (m_ten - 1);
+                                        m_ten <= m_ten - 1;
                                     end
                                 end else begin
-                                    m_one <= (m_one - 1);
+                                    m_one <= m_one - 1;
                                 end
                             end else begin
-                                s_ten <= (s_ten - 1);
+                                s_ten <= s_ten - 1;
                             end
                         end else begin
-                            s_one <= (s_one - 1);
+                            s_one <= s_one - 1;
                         end
                     end else begin
                         h_cnt <= h_cnt + 1;
@@ -123,19 +129,30 @@ module timer(
                 end
             end
 
-            // (C) LED 깜빡임 로직
+            // (C) LED 깜빡임 로직 (timer_done==1이면 최대 10회만 깜빡)
             if (timer_done) begin
-                // 0.5초마다 토글
-                if (blink_cnt >= 16'd499) begin
-                    blink_cnt <= 0;
-                    led <= ~led;
-                end else begin
-                    blink_cnt <= blink_cnt + 1;
+                // 만약 led_toggle_count < 10회(토글)라면 깜빡임 진행
+                // (주의: ON→OFF 1회, OFF→ON 1회로 치면 실제로 10번 토글은 5회 빛나는 것
+                // 여기서는 "10번 토글" = 10번 LED가 반전
+                if (led_toggle_count < 10) begin
+                    if (blink_cnt >= 16'd499) begin
+                        blink_cnt <= 0;
+                        led <= ~led;
+                        led_toggle_count <= led_toggle_count + 1;
+                    end else begin
+                        blink_cnt <= blink_cnt + 1;
+                    end
                 end
-            end else begin
-                // 타이머 동작 중 or reset
+                else begin
+                    // 10번 모두 깜빡이면 LED 끔
+                    led <= 8'b00000000;
+                end
+            end 
+            else begin
+                // 동작 중이면 LED 끔, 카운터 리셋
                 led <= 8'b00000000;
                 blink_cnt <= 0;
+                led_toggle_count <= 0;
             end
         end
     end
@@ -167,15 +184,15 @@ module timer(
     wire [7:0] seg_m_ten, seg_m_one;
     wire [7:0] seg_s_ten, seg_s_one;
 
-    seg_decode u0 (h_ten, seg_h_ten);
-    seg_decode u1 (h_one, seg_h_one);
-    seg_decode u2 (m_ten, seg_m_ten);
-    seg_decode u3 (m_one, seg_m_one);
-    seg_decode u4 (s_ten, seg_s_ten);
-    seg_decode u5 (s_one, seg_s_one);
+    seg_decode u0(h_ten, seg_h_ten);
+    seg_decode u1(h_one, seg_h_one);
+    seg_decode u2(m_ten, seg_m_ten);
+    seg_decode u3(m_one, seg_m_one);
+    seg_decode u4(s_ten, seg_s_ten);
+    seg_decode u5(s_one, seg_s_one);
 
     //-----------------------------------
-    // (5) 세그먼트 분할 구동
+    // (5) 세그먼트 분할 구동 (예시)
     //-----------------------------------
     reg [2:0] s_cnt;
     always @(posedge clk or posedge rst) begin
@@ -191,7 +208,7 @@ module timer(
             seg_com  <= 8'b11111111;
         end else begin
             case(s_cnt)
-                // 필요시 앞 2칸 비우기
+                // 필요시 맨 왼쪽 2칸 비우기
                 3'd0: begin seg_com <= 8'b0111_1111; seg_data <= 8'b0000_0000; end
                 3'd1: begin seg_com <= 8'b1011_1111; seg_data <= 8'b0000_0000; end
 
