@@ -1,64 +1,64 @@
 # 2024-2 : 논리회로 설계 및 실험 텀프로젝트 : 전자시계
 
 ## 1. top_module.v
-    * 모든 .v 파일 모듈화
-    * top_module을 통해 FSM 구성 후 제어
-    * 1 MHz
-      * stopwatch.v
-      * piezo.v
-    * 1 MHz -> 1 kHz
-      * watch.v
-      * timer.v
-    * 1 MHz -> 1 kHz -> 100 Hz
-      * textlcd.v
+* **모든 .v 파일 모듈화**
+* top_module을 통해 FSM 구성 후 제어
+* 1 MHz
+    * stopwatch.v
+    * piezo.v
+* 1 MHz -> 1 kHz
+    * watch.v
+    * timer.v
+* 1 MHz -> 1 kHz -> 100 Hz
+  * textlcd.v
 
 
 ---
 ## 2. watch.v
-    * 1 kHz 사용
-    * HH:MM:SS 출력
-    * 키패드 입력 처리, 시간 설정, 시계 동작 로직 구현
-    * 키패드 입력 숫자로 변환하는 함수 구현
+  * 1 kHz 사용
+  * HH:MM:SS 출력
+  * 키패드 입력 처리, 시간 설정, 시계 동작 로직 구현
+  * 키패드 입력 숫자로 변환하는 함수 구현
 
 
 ---
 ## 3. stopwatch.v
-    * 1 MHz 사용
-    * HH:MM:SS:MSMS 출력
-    * watch.v와 로직 동일
+  * 1 MHz 사용
+  * HH:MM:SS:MSMS 출력
+  * watch.v와 로직 동일
 
 
 ---
 ## 4. timer.v
-    * 1 kHz 사용
-    * HH:MM:SS 출력
-    * watch.v는 증가시키는 로직. timer.v는 감소시키는 로직 구현
-    * LED control : timer_done 트리거 발생 시 LED 5회 Blink
-    * timer_done 트리거 top_module로 넘겨서 piezo_melody.v에 전달
+  * 1 kHz 사용
+  * HH:MM:SS 출력
+  * watch.v는 증가시키는 로직. timer.v는 감소시키는 로직 구현
+  * LED control : timer_done 트리거 발생 시 LED 5회 Blink
+  * timer_done 트리거 top_module로 넘겨서 piezo_melody.v에 전달
 
 
 ---
 ## 5. textlcd.v
-    * 100 Hz 사용
-    * FSM 구현하여 MODE에 따라 다른 텍스트 출력 (MODE 0 : watch, MODE 1 : stopwatch, MODE 2 : timer)
+  * 100 Hz 사용
+  * FSM 구현하여 MODE에 따라 다른 텍스트 출력 (MODE 0 : watch, MODE 1 : stopwatch, MODE 2 : timer)
 
 
 ---
 ## 6. clock_divider_1k.v
-    * 1 MHz -> 1 kHz 분주기
-    * 시계는 1초를 세기 떄문에 1 kHz가 필요하나 Piezo의 경우 1 MHz가 필요하여 분주기 설정
+  * 1 MHz -> 1 kHz 분주기
+  * 시계는 1초를 세기 떄문에 1 kHz가 필요하나 Piezo의 경우 1 MHz가 필요하여 분주기 설정
 
 
 ---
 ## 7. peizo_melody.v
-    * FSM 구현 (0 : IDLE, 1 : PLAY, 2 : DONE)
-    * C4 -> D4 -> E4 -> F4 -> G4 -> A4 -> B4 -> C5 (0.5초 후 다음 음으로 가는 로직)
+  * FSM 구현 (0 : IDLE, 1 : PLAY, 2 : DONE)
+  * C4 -> D4 -> E4 -> F4 -> G4 -> A4 -> B4 -> C5 (0.5초 후 다음 음으로 가는 로직)
 
 
 ---
 ## 8. seg_decode.v
-    * 입력받은 숫자 7-segment로 디코딩
-    * a, b, c, d, e, f, g, com -> 8b'00000000 방식
+  * 입력받은 숫자 7-segment로 디코딩
+  * a, b, c, d, e, f, g, com -> 8b'00000000 방식
 
 
 ---
