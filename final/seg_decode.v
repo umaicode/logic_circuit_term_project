@@ -1,10 +1,15 @@
 module seg_decode(data_in, seg_data);
 
+//============================== input, output, register 선언 ==============================
 input [3:0] data_in;
 output [7:0] seg_data;
 
 reg [7:0] seg_data;
+//============================== input, output, register 선언 ==============================
 
+
+//============================== 7-Segment 디코딩 로직 ==============================
+// 순서대로 a, b, c, d, e, f, g, 공통 핀
 always @(data_in)
     case(data_in)
         4'b0000 : seg_data = 8'b1111_1100;
@@ -24,5 +29,7 @@ always @(data_in)
         4'b1110 : seg_data = 8'b1001_1110;
         4'b1111 : seg_data = 8'b1000_1110;
     endcase
+//============================== 7-Segment 디코딩 로직 ==============================
+
 
 endmodule
