@@ -1,11 +1,11 @@
 module top_module(
-    input clk_1mhz,     // 보드에서 공급되는 1MHz 클록 (또는 PLL 등으로 1MHz 만들었다고 가정)
-    input rst,          // Reset (active high)
-    input mode,         // 모드 전환 버튼
-    input start,        // 스톱워치 Start 버튼
-    input dip_sw,       // watch 모드 스위치
-    input dip_sw_timer, // timer 모드 스위치
-    input [9:0] keypad, // 키패드
+    input clk_1mhz,   
+    input rst,        
+    input mode,       
+    input start,      
+    input dip_sw,     
+    input dip_sw_timer,
+    input [9:0] keypad,
     output [7:0] seg_data,
     output [7:0] seg_com,
     output lcd_e,
@@ -13,12 +13,9 @@ module top_module(
     output lcd_rw,
     output [7:0] lcd_data,
     output [7:0] led,
-    output piezo_out    // ★ 추가: 피에조 스피커 출력 (원하면)
+    output piezo_out
 );
-
-    //------------------------------------
     // 1) 1MHz -> 1kHz 분주
-    //------------------------------------
     wire clk_1khz;
     clock_divider_1k div_1k (
         .clk_in(clk_1mhz),
@@ -26,18 +23,15 @@ module top_module(
         .clk_out(clk_1khz)
     );
 
-    //------------------------------------
-    // 2) 상태 전환 로직 (mode 버튼)
-    //    - 시계(s0), 스톱워치(s1), 타이머(s2)
-    //------------------------------------
+    // 2) 상태 전환 로직
     parameter s0 = 2'b00,
               s1 = 2'b01,
               s2 = 2'b10;
 
     reg [1:0] state_m;
-
     always @(posedge rst or posedge mode) begin
-        if (rst) state_m <= s0;
+        if (rst) 
+            state_m <= s0;
         else begin
             case(state_m)
                 s0: state_m <= s1;
@@ -48,14 +42,11 @@ module top_module(
         end
     end
 
-    //------------------------------------
-    // 3) 각 모듈 인스턴스
-    //------------------------------------
-    // (A) Watch
+    // 3) Watch (1kHz)
     wire [7:0] watch_seg_data;
     wire [7:0] watch_seg_com;
     watch watch_inst (
-        .clk(clk_1khz),      // ★ 1kHz 사용
+        .clk(clk_1khz),
         .rst(rst),
         .dip_sw(dip_sw),
         .keypad(keypad),
@@ -63,35 +54,39 @@ module top_module(
         .seg_com(watch_seg_com)
     );
 
-    // (B) Stopwatch
+    // 4) Stopwatch (1MHz)
     wire [7:0] stopwatch_seg_data;
     wire [7:0] stopwatch_seg_com;
     stopwatch stopwatch_inst (
-        .clk(clk_1mhz),      // ★ 1MHz 직접 사용 (ms 정확도 위해)
+        .clk(clk_1mhz),
         .rst(rst),
         .start(start),
         .seg_data(stopwatch_seg_data),
         .seg_com(stopwatch_seg_com)
     );
 
-    // (C) Timer
+    // 5) Timer (1kHz)
     wire [7:0] timer_seg_data;
     wire [7:0] timer_seg_com;
     wire [7:0] timer_led;
+    wire timer_done_wire; // ★ timer 완료 신호
+
     timer timer_inst (
-        .clk(clk_1khz),      // ★ 1kHz 사용
+        .clk(clk_1khz),
         .rst(rst),
         .dip_sw_timer(dip_sw_timer),
         .keypad(keypad),
         .seg_data(timer_seg_data),
         .seg_com(timer_seg_com),
-        .led(timer_led)      // 8비트 LED 신호
+        .led(timer_led),
+
+        // 연결
+        .timer_done_out(timer_done_wire) // ★ 출력 연결
     );
 
-    // (D) TextLCD
+    // 6) TextLCD (1kHz)
     wire [7:0] textlcd_data_w;
     wire textlcd_e_w, textlcd_rs_w, textlcd_rw_w;
-    // msg_sel 결정
     reg [1:0] msg_sel_reg;
     always @(*) begin
         case(state_m)
@@ -104,7 +99,7 @@ module top_module(
 
     textlcd textlcd_inst (
         .rst(rst),
-        .clk(clk_1khz),          // ★ 1kHz를 넣고, 내부에서 100Hz 분주
+        .clk(clk_1khz),
         .msg_sel(msg_sel_reg),
         .lcd_e(textlcd_e_w),
         .lcd_rs(textlcd_rs_w),
@@ -112,15 +107,12 @@ module top_module(
         .lcd_data(textlcd_data_w)
     );
 
-    // LCD 외부 포트 연결
     assign lcd_e    = textlcd_e_w;
     assign lcd_rs   = textlcd_rs_w;
     assign lcd_rw   = textlcd_rw_w;
     assign lcd_data = textlcd_data_w;
 
-    //------------------------------------
-    // 4) 상태별 FND 표시 선택
-    //------------------------------------
+    // 7) 상태별 FND 표시
     reg [7:0] seg_data_reg;
     reg [7:0] seg_com_reg;
     assign seg_data = seg_data_reg;
@@ -152,23 +144,15 @@ module top_module(
         end
     end
 
-    //------------------------------------
-    // 5) LED 연결 (timer의 led 출력 사용)
-    //------------------------------------
-    assign led = timer_led; // 타이머 모듈이 00:00:00 되면 led 깜빡
+    // 8) LED 연결
+    assign led = timer_led; 
 
-    //------------------------------------
-    // 6) Piezo (멜로디) (옵션)
-    //------------------------------------
-    // timer_done 시점에 도레미파솔라시도 등 멜로디를 내고 싶다면,
-    // 아래와 같은 모듈을 추가:
-    wire timer_done; // timer에서 "00:00:00" 도달 신호를 wire로 뽑아오고 싶다면
-    // => timer.v를 조금 수정해서 'timer_done'을 포트로 꺼낼 수 있음.
-    // 여기선 가상의 예시
-    wire melody_en = timer_done; // timer_done이 1이면 멜로디 스타트
+    // 9) Piezo 멜로디
+    // timer_done_wire==1 → 한 번만 멜로디 재생
+    wire melody_en = timer_done_wire; 
 
     piezo_melody melody_inst (
-        .clk(clk_1mhz),     // 1MHz
+        .clk(clk_1mhz),
         .rst(rst),
         .start_melody(melody_en),
         .piezo_out(piezo_out)
