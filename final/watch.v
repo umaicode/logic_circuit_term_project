@@ -1,74 +1,71 @@
 module watch(clk, rst, dip_sw, keypad, seg_data, seg_com);
 
+//============================= input, register, wire 선언 =============================
 input clk;            // 1kHz clock
-input rst;            // 由ъ뀑 떊 샇
-input dip_sw;         // DIP 뒪 쐞移 엯 젰 (1: 꽕 젙 紐⑤뱶, 0: 떆怨 紐⑤뱶)
-input [9:0] keypad;   // 궎 뙣 뱶 엯 젰 (0~9)
+input rst;            // reset 신호
+input dip_sw;         // DIP switch 입력 (1: 시간 설정 모드, 0 : 시계 동작 모드)
+input [9:0] keypad;   // 키패드 입력 (0 ~ 9)
 
-output reg [7:0] seg_data;
-output reg [7:0] seg_com;
+output reg [7:0] seg_data;  // 7-segment 디스플레이 데이터 출력
+output reg [7:0] seg_com;   // 7-segment 디스플레이 공통 출력
 
-// 떆媛 移댁슫 꽣
+// 시간 저장 레지스터
 reg [3:0] h_ten, h_one, m_ten, m_one, s_ten, s_one;
 
-// 꽭洹몃㉫ 듃 뵒肄붾뵫 쓣 쐞 븳 wire
+// decoding 후 7-segment 출력용 wire
 wire [7:0] seg_h_ten, seg_h_one;
 wire [7:0] seg_m_ten, seg_m_one;
 wire [7:0] seg_s_ten, seg_s_one;
 
-// 엯 젰 愿 젴 긽 깭
-reg [2:0] input_cnt;       // 0遺 꽣 5源뚯 쓽 엯 젰 移댁슫 꽣
-reg [9:0] h_cnt;           // 1珥 移댁슫 꽣
-reg input_done;            // 엯 젰 셿猷 뵆 옒洹
+// 입력 처리 상태
+reg [2:0] input_cnt;       // 입력 처리 단계 카운터 (0 ~ 5)
+reg [9:0] h_cnt;           // 1초 카운터
+reg input_done;            // 입력 완료 플래그
 
-// 궎 뙣 뱶 엯 젰 뵒肄붾뵫 諛 떆媛 꽕 젙
+// 키패드 이전 상태 저장
 reg [9:0] keypad_prev;
+//============================= input, register, wire 선언 =============================
 
-// ------------------------------ 븣 엺 뿰寃 --------------------------------------
 
-//--------------------------- 뼹 엺 뿰寃 done ---------------------------------
-
-// -----------------------------
-// 궎 뙣 뱶 엯 젰 諛 떆媛 꽕 젙, 떆怨 移댁슫 꽣 넻 빀
-// -----------------------------
+//============================== 키패드 입력 처리, 시간 설정, 시계 동작 로직 구현 ==============================
 always @(posedge clk or posedge rst) begin
     if (rst) begin
-        input_cnt <= 0;
-        input_done <= 0;
-        h_cnt <= 0;
+        input_cnt <= 0;                     // 입력 카운터 초기화
+        input_done <= 0;                    // 입력 완료 플래그 초기화
+        h_cnt <= 0;                         // 1초 카운터 초기화
         h_ten <= 0; h_one <= 0;
         m_ten <= 0; m_one <= 0;
         s_ten <= 0; s_one <= 0;
-        keypad_prev <= 10'b0000000000;
+        keypad_prev <= 10'b0000000000;      // 키패드 이전 상태 초기화
     end else begin
-        keypad_prev <= keypad;
+        keypad_prev <= keypad;              // 키패드 상태 갱신
 
         if (dip_sw) begin
-            // 떆媛 꽕 젙 紐⑤뱶
+            //-------------------------------- 시간 설정 모드 --------------------------------
             if (keypad != 10'b0000000000 && keypad_prev == 10'b0000000000) begin
-                // 궎 뙣 뱶 엯 젰 利됱떆 諛섏쁺
+                // 키패드 입력 발생 처리 과정
                 case (input_cnt)
-                    0: h_ten <= keypad_to_digit(keypad);
-                    1: h_one <= keypad_to_digit(keypad);
-                    2: m_ten <= keypad_to_digit(keypad);
-                    3: m_one <= keypad_to_digit(keypad);
-                    4: s_ten <= keypad_to_digit(keypad);
+                    0: h_ten <= keypad_to_digit(keypad);    // 시의 10의 자리 입력
+                    1: h_one <= keypad_to_digit(keypad);    // 시의 1의 자리 입력
+                    2: m_ten <= keypad_to_digit(keypad);    // 분의 10의 자리 입력
+                    3: m_one <= keypad_to_digit(keypad);    // 분의 1의 자리 입력
+                    4: s_ten <= keypad_to_digit(keypad);    // 초의 10의 자리 입력
                     5: begin
-                        s_one <= keypad_to_digit(keypad);
-                        input_done <= 1; // 꽕 젙 셿猷
+                        s_one <= keypad_to_digit(keypad);   // 초의 1의 자리 입력
+                        input_done <= 1;                    // 입력 완료 플래그 설정
                     end
                 endcase
 
-                // 엯 젰 移댁슫 꽣 利앷
+                //------------------------------ 입력 단계 카운터 증가 로직 ------------------------------
                 if (input_cnt < 5) begin
                     input_cnt <= input_cnt + 1;
                 end else begin
-                    input_cnt <= 0; // 엯 젰 셿猷 썑 珥덇린 솕
+                    input_cnt <= 0;                         // 입력 완료 후 초기화
                 end
             end
         end else if (input_done) begin
-            // 떆怨 移댁슫 꽣 紐⑤뱶
-            if (h_cnt >= 999) begin
+            //------------------------------ 시계 동작 로직 구현 ------------------------------
+            if (h_cnt >= 999) begin                                     // 1초 카운터가 999
                 h_cnt <= 0;
                 if (s_one == 9) begin
                     s_one <= 0;
@@ -79,7 +76,7 @@ always @(posedge clk or posedge rst) begin
                             if (m_ten == 5) begin
                                 m_ten <= 0;
                                 if (h_ten == 2 && h_one == 3) begin
-                                    h_ten <= 0;
+                                    h_ten <= 0;                         // 23:59:59 -> 00:00:00 초기화
                                     h_one <= 0;
                                 end else if (h_one == 9) begin
                                     h_one <= 0;
@@ -105,8 +102,10 @@ always @(posedge clk or posedge rst) begin
         end
     end
 end
+//============================== 키패드 입력 처리, 시간 설정, 시계 동작 로직 구현 ==============================
 
-// 궎 뙣 뱶 엯 젰 쓣 닽 옄濡 蹂 솚 븯 뒗 븿 닔
+
+//============================== 키패드 입력을 숫자로 변환하는 함수 ==============================
 function [3:0] keypad_to_digit;
     input [9:0] keypad;
     case (keypad)
@@ -123,20 +122,20 @@ function [3:0] keypad_to_digit;
         default: keypad_to_digit = 4'd0;
     endcase
 endfunction
+//============================== 키패드 입력을 숫자로 변환하는 함수 ==============================
 
-// -----------------------------
-// 꽭洹몃㉫ 듃 뵒肄붾뵫
-// -----------------------------
+
+//============================== 7-segment 디코딩 ==============================
 seg_decode u0 (h_ten, seg_h_ten);
 seg_decode u1 (h_one, seg_h_one);
 seg_decode u2 (m_ten, seg_m_ten);
 seg_decode u3 (m_one, seg_m_one);
 seg_decode u4 (s_ten, seg_s_ten);
 seg_decode u5 (s_one, seg_s_one);
+//============================== 7-segment 디코딩 ==============================
 
-// -----------------------------
-// 꽭洹몃㉫ 듃 몴 떆
-// -----------------------------
+
+//============================== 7-segment 출력 ==============================
 reg [2:0] s_cnt;
 
 always @(posedge clk or posedge rst) begin
@@ -160,5 +159,7 @@ always @(posedge clk or posedge rst) begin
         endcase
     end
 end
+//============================== 7-segment 출력 ==============================
+
 
 endmodule
