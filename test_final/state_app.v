@@ -1,132 +1,161 @@
 module state_app(
-    input rst,         // 뵳 딅 ? 뻿? 깈 (active high)
-    input clk,         // 1kHz ? 뿯? 젾 ?寃 ? 쑏
-    input mode,        // ?湲 ?源 ? 읈? 넎 ? 뻿? 깈
-    input start,       // ? 뮞? 꽧? 뜖燁 ? ? 뻻? 삂 ? 뻿? 깈
-    input dip_sw,
-    input dip_sw_timer,      // DIP ? 뮞? 맄燁 ? ? 뿯? 젾 (1: ?苑 ? 젟 筌뤴뫀諭 , 0: ? 뻻 ? 筌뤴뫀諭 )
-    input [9:0] keypad, // ?沅 ? 솭?諭 ? 뿯? 젾
-    output [7:0] seg_data, seg_com,       // 7-?苑 域밸챶 돧? 뱜 ?逾 ? 뮞?逾 ? 쟿? 뵠 ? 쑓? 뵠?苑 獄 ? ⑤벏 꽰 ? 뻿? 깈
-    output lcd_e, lcd_rs, lcd_rw,        // LCD ? 젫?堉 ? 뻿? 깈
-    output [7:0] lcd_data,                // LCD ? 쑓? 뵠?苑
-    output [7:0] led
+    input rst,               // 리셋 (active high)
+    input clk,               // 1kHz 입력 클록
+    input mode,              // 상태 전환 (버튼)
+    input start,             // 스톱워치 시작(버튼)
+    input dip_sw,            // 시계 모드용 DIP
+    input dip_sw_timer,      // 타이머 모드용 DIP
+    input [9:0] keypad,      // 키패드
+    output [7:0] seg_data,   // FND 데이터
+    output [7:0] seg_com,    // FND 자리 선택
+    output lcd_e,            // LCD Enable
+    output lcd_rs,           // LCD Register Select
+    output lcd_rw,           // LCD R/W
+    output [7:0] lcd_data,   // LCD 데이터
+    output [7:0] led         // ★ LED 8비트 (여기서 [0] 사용)
 );
 
-    reg[7:0] seg_data;
-    reg[7:0] seg_com;
-    reg[7:0] led;
-   
-    // // ?沅↓겫? ? 뻿? 깈 ?苑 ?堉
-    // wire clk_100hz; // 100Hz ?寃 ? 쑏 ? 뻿? 깈
+    //----------------------------------------
+    // (1) 내부 reg, wire 선언
+    //----------------------------------------
+    reg [7:0] seg_data_reg;
+    reg [7:0] seg_com_reg;
 
-    // // ?寃 ? 쑏 겫袁⑼폒疫 ? ? 뵥? 뮞?苑 ? 뮞? 넅
-    // clock_divider clk_div (
-    //     .clk_in(clk),    // 1kHz ? 뿯? 젾 ?寃 ? 쑏
-    //     .rst(rst),       // 뵳 딅 ? 뻿? 깈
-    //     .clk_out(clk_100hz) // 100Hz 빊 뮆 젾 ?寃 ? 쑏
-    // );
+    assign seg_data = seg_data_reg;
+    assign seg_com  = seg_com_reg;
 
-    // ?湲 ?源 솒紐꾨뻿 ?湲 ?源 揶 ? ? 젟? 벥
-    parameter s0 = 2'b00, s1 = 2'b01, s2 = 2'b10;
-    reg [1:0] state_m; // ? 겱? 삺 ?湲 ?源 몴? ??? 삢?釉 ? 뮉 ? 쟿筌 ?? 뮞?苑
+    // 여기서 led는 wire 타입 (출력 포트)
+    // 내부에선 timer_led라는 wire를 받아서 연결
+    wire [7:0] timer_led;
 
-    // ?湲 ?源 솒紐꾨뻿
+    //----------------------------------------
+    // (2) 상태 정의 및 전환
+    //----------------------------------------
+    parameter s0 = 2'b00, // 시계
+              s1 = 2'b01, // 스톱워치
+              s2 = 2'b10; // 타이머
+
+    reg [1:0] state_m;
+
     always @(posedge rst or posedge mode) begin
         if (rst) begin
-            state_m <= s0; // 뵳 딅 ? 뻻 룯 뜃由 ?湲 ?源 嚥 ? ?苑 ? 젟
+            state_m <= s0;
         end else begin
             case (state_m)
-                s0: state_m <= s1; // s0 -> s1
-                s1: state_m <= s2; // s1 -> s2
-                s2: state_m <= s0; // s2 -> s0
-                default: state_m <= s0; // 疫꿸퀡 궚 ?湲 ?源 ? 뮉 s0
+                s0: state_m <= s1;  
+                s1: state_m <= s2;
+                s2: state_m <= s0;
+                default: state_m <= s0;
             endcase
         end
     end
 
-    // ? 뻻 ? 筌뤴뫀諭 빊 뮆 젾
-    wire [7:0] watch_seg_data; // ? 뻻 ? 筌뤴뫀諭 ? 벥 7-?苑 域밸챶 돧? 뱜 ? 쑓? 뵠?苑
-    wire [7:0] watch_seg_com;  // ? 뻻 ? 筌뤴뫀諭 ? 벥 7-?苑 域밸챶 돧? 뱜 ⑤벏 꽰 ? 뻿? 깈
-
+    //----------------------------------------
+    // (3) 시계/스톱워치/타이머 모듈 인스턴스
+    //----------------------------------------
+    // (A) 시계
+    wire [7:0] watch_seg_data;
+    wire [7:0] watch_seg_com;
     watch watch_inst (
-        .clk(clk),       // ? 뻻 ④쑬 뮉 1kHz ?寃 ? 쑏 ?沅 ? 뒠
-        .rst(rst),       // 뵳 딅 ? 뻿? 깈
-        .keypad(keypad), // ?沅 ? 솭?諭 ? 뿯? 젾
-        .dip_sw(dip_sw), // DIP ? 뮞? 맄燁 ? ? 뿯? 젾
-        .seg_data(watch_seg_data), // ? 뻻 ? ? 쑓? 뵠?苑 빊 뮆 젾
-        .seg_com(watch_seg_com)    // ? 뻻 ? ⑤벏 꽰 ? 뻿? 깈 빊 뮆 젾
+        .clk(clk),
+        .rst(rst),
+        .keypad(keypad),
+        .dip_sw(dip_sw),
+        .seg_data(watch_seg_data),
+        .seg_com(watch_seg_com)
     );
 
-    // ? 뮞? 꽧? 뜖燁 ? 筌뤴뫀諭 빊遺 ?
-    wire [7:0] stopwatch_seg_data; // ? 뮞? 꽧? 뜖燁 ? 7-?苑 域밸챶 돧? 뱜 ? 쑓? 뵠?苑
-    wire [7:0] stopwatch_seg_com;  // ? 뮞? 꽧? 뜖燁 ? 7-?苑 域밸챶 돧? 뱜 ⑤벏 꽰 ? 뻿? 깈
-
+    // (B) 스톱워치
+    wire [7:0] stopwatch_seg_data;
+    wire [7:0] stopwatch_seg_com;
     stopwatch stopwatch_inst (
-        .clk(clk),           // 1kHz ?寃 ? 쑏
-        .rst(rst),           // 뵳 딅 ? 뻿? 깈
-        .start(start),        // 筌뤴뫀諭 ?沅↓겫??肉 ?苑 甕곌쑵 뱣? 몵嚥 ? ? 젫?堉
-        .seg_data(stopwatch_seg_data), // ? 뮞? 꽧? 뜖燁 ? ? 쑓? 뵠?苑 빊 뮆 젾
-        .seg_com(stopwatch_seg_com)    // ? 뮞? 꽧? 뜖燁 ? ⑤벏 꽰 ? 뻿? 깈 빊 뮆 젾
+        .clk(clk),
+        .rst(rst),
+        .start(start),
+        .seg_data(stopwatch_seg_data),
+        .seg_com(stopwatch_seg_com)
     );
 
+    // (C) 타이머
+    //     => led 신호를 추가로 받아옴
     wire [7:0] timer_seg_data;
     wire [7:0] timer_seg_com;
-
     timer timer_inst (
         .clk(clk),
         .rst(rst),
         .dip_sw_timer(dip_sw_timer),
         .keypad(keypad),
         .seg_data(timer_seg_data),
-        .seg_com(timer_seg_com)
+        .seg_com(timer_seg_com),
+        .led(timer_led)       // ★ 추가된 LED 출력
     );
 
-        // LCD 젣 뼱
-    wire textlcd_e, textlcd_rs, textlcd_rw;
-    wire [7:0] textlcd_data;
-
-    textlcd textlcd_inst (
-        .rst(rst),
-        .clk(clk),       // 100Hz 겢 윮
-        .lcd_e(textlcd_e),     // LCD Enable
-        .lcd_rs(textlcd_rs),   // LCD Register Select
-        .lcd_rw(textlcd_rw),   // LCD Read/Write
-        .lcd_data(textlcd_data) // LCD 뜲 씠 꽣
-    );
-
-    assign lcd_e = textlcd_e;
-    assign lcd_rs = textlcd_rs;
-    assign lcd_rw = textlcd_rw;
-    assign lcd_data = textlcd_data;
-
-    // ?湲 ?源 癰 ? 7-?苑 域밸챶 돧? 뱜 ?逾 ? 뮞?逾 ? 쟿? 뵠 빊 뮆 젾
+    //----------------------------------------
+    // (4) 상태에 따른 FND 표시 선택
+    //----------------------------------------
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            seg_data <= 8'b0000_0000;
-            seg_com <= 8'b1111_1111;
+            seg_data_reg <= 8'b0000_0000;
+            seg_com_reg  <= 8'b1111_1111;
         end else begin
             case (state_m)
                 s0: begin
-                    // ? 뻻 ? 빊 뮆 젾
-                    seg_data = watch_seg_data;
-                    seg_com = watch_seg_com;
+                    seg_data_reg <= watch_seg_data;
+                    seg_com_reg  <= watch_seg_com;
                 end
                 s1: begin
-                    // ? 뮞? 꽧? 뜖燁 ? 빊 뮆 젾
-                    seg_data = stopwatch_seg_data;
-                    seg_com = stopwatch_seg_com;
+                    seg_data_reg <= stopwatch_seg_data;
+                    seg_com_reg  <= stopwatch_seg_com;
                 end
                 s2: begin
-                    // ?釉 ? 뿺 ?苑 ? 젟 (?援밥빳臾믩퓠 뤃 뗭겱)
-                    seg_data = timer_seg_data; // 疫꿸퀡 궚揶 ?
-                    seg_com = timer_seg_com; // 疫꿸퀡 궚揶 ?
+                    seg_data_reg <= timer_seg_data;
+                    seg_com_reg  <= timer_seg_com;
                 end
                 default: begin
-                    seg_data = watch_seg_data;
-                    seg_com = watch_seg_com;
+                    seg_data_reg <= 8'b0000_0000;
+                    seg_com_reg  <= 8'b1111_1111;
                 end
             endcase
         end
     end
+
+    //----------------------------------------
+    // (5) LCD (textlcd) 연결
+    //----------------------------------------
+    wire textlcd_e, textlcd_rs, textlcd_rw;
+    wire [7:0] textlcd_data_w;
+
+    // 상태 -> msg_sel 변환
+    reg [1:0] msg_sel_reg;
+    always @(*) begin
+        case (state_m)
+            s0: msg_sel_reg = 2'b00;
+            s1: msg_sel_reg = 2'b01;
+            s2: msg_sel_reg = 2'b10;
+            default: msg_sel_reg = 2'b00;
+        endcase
+    end
+
+    textlcd textlcd_inst (
+        .rst(rst),
+        .clk(clk),
+        .msg_sel(msg_sel_reg),
+        .lcd_e(textlcd_e),
+        .lcd_rs(textlcd_rs),
+        .lcd_rw(textlcd_rw),
+        .lcd_data(textlcd_data_w)
+    );
+
+    // LCD 출력 배선
+    assign lcd_e    = textlcd_e;
+    assign lcd_rs   = textlcd_rs;
+    assign lcd_rw   = textlcd_rw;
+    assign lcd_data = textlcd_data_w;
+
+    //----------------------------------------
+    // (6) LED 출력
+    //----------------------------------------
+    // 여기서는 led[0]에 타이머 LED 연결, 나머지는 0으로 둠
+    assign led = timer_led;
 
 endmodule
